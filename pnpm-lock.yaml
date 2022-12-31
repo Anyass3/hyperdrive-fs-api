@@ -1,0 +1,142 @@
+lockfileVersion: 5.4
+
+specifiers:
+  '@types/hyperbee': ./@types/hyperbee
+  '@types/hypercore': ./@types/hypercore
+  '@types/hyperdrive': link:@types/hyperdrive
+  '@types/node': ^18.11.18
+  hyperdrive: 11.0.0-alpha.10
+  tslib: ^2.4.1
+  typescript: ^4.9.3
+
+dependencies:
+  hyperdrive: 11.0.0-alpha.10
+
+devDependencies:
+  '@types/hyperbee': link:@types/hyperbee
+  '@types/hypercore': link:@types/hypercore
+  '@types/hyperdrive': link:@types/hyperdrive
+  '@types/node': 18.11.18
+  tslib: 2.4.1
+  typescript: 4.9.4
+
+packages:
+
+  /@types/node/18.11.18:
+    resolution: {integrity: sha512-DHQpWGjyQKSHj3ebjFI/wRKcqQcdR+MoFBygntYOZytCqNfkd2ZC4ARDJ2DQqhjH5p85Nnd3jhUJIXrszFX/JA==}
+    dev: true
+
+  /b4a/1.6.1:
+    resolution: {integrity: sha512-AsKjNhz72yxteo/0EtQEiwkMUgk/tGmycXlbG4g3Ard2/ULtNLUykGOkeK0egmN27h0xMAhb76jYccW+XTBExA==}
+    dev: false
+
+  /binary-stream-equals/1.0.0:
+    resolution: {integrity: sha512-xiUT5LGfD8JiLhbXiG+ByOnbgb9f2ssRLfZDQMl3nZdf89EotQZGZuMkDN8J3n46emabE7RnJ1q0r7Hv3INExw==}
+    dependencies:
+      b4a: 1.6.1
+    dev: false
+
+  /codecs/3.0.0:
+    resolution: {integrity: sha512-tYnev/H2/q+dedb6/sDDvJLwzD2GqYIe8d7fKnyM2KxUKJ3xf/D7xG0nO/4WCT1yU1HQTvTq1o43QSQGmHcEmA==}
+    dependencies:
+      b4a: 1.6.1
+    dev: false
+
+  /fast-fifo/1.1.0:
+    resolution: {integrity: sha512-Kl29QoNbNvn4nhDsLYjyIAaIqaJB6rBx5p3sL9VjaefJ+eMFBWVZiaoguaoZfzEKr5RhAti0UgM8703akGPJ6g==}
+    dev: false
+
+  /hyperbee/2.2.0:
+    resolution: {integrity: sha512-zup1IXxmdabvzRGe4bPWW868mLgvofl/aofK1IKka7TOajMGrQdMzCoWJfeXu7+n/PyIVt58totuVGhmOpsXAw==}
+    dependencies:
+      b4a: 1.6.1
+      codecs: 3.0.0
+      mutexify: 1.4.0
+      protocol-buffers-encodings: 1.2.0
+      streamx: 2.13.0
+    dev: false
+
+  /hyperblobs/2.0.1:
+    resolution: {integrity: sha512-Vy4Ak1vyC5IRzrzfOfLWZdzwP6nnT6tzf3WNMuU/s2/FLGMsIjwrQznCCEefjcfZOAxygfSk+21ItdYQG1lA2A==}
+    dependencies:
+      b4a: 1.6.1
+      mutexify: 1.4.0
+      streamx: 2.13.0
+    dev: false
+
+  /hyperdrive/11.0.0-alpha.10:
+    resolution: {integrity: sha512-Lzn8Pf/93OM+wsGL++l0ShH7BLa/qcmuPNDcA1z2gYMIR7tiwc/dIwM8jNUhDbAZ9l0FL3xaNASeGxJxxpuRAw==}
+    dependencies:
+      hyperbee: 2.2.0
+      hyperblobs: 2.0.1
+      is-options: 1.0.2
+      mirror-drive: 1.2.1
+      streamx: 2.13.0
+      unix-path-resolve: 1.0.2
+    dev: false
+
+  /is-options/1.0.2:
+    resolution: {integrity: sha512-u+Ai74c8Q74aS8BuHwPdI1jptGOT1FQXgCq8/zv0xRuE+wRgSMEJLj8lVO8Zp9BeGb29BXY6AsNPinfqjkr7Fg==}
+    dependencies:
+      b4a: 1.6.1
+    dev: false
+
+  /mirror-drive/1.2.1:
+    resolution: {integrity: sha512-1Y6vj25cVXIxzkiN9HRPOLunk/KnWAFG+EDHtjMBt/ydaD9UKUsqb0p/ly1ht/vFtDTvWEW5lPoIll6hzvMu3g==}
+    dependencies:
+      binary-stream-equals: 1.0.0
+      same-data: 1.0.0
+    dev: false
+
+  /mutexify/1.4.0:
+    resolution: {integrity: sha512-pbYSsOrSB/AKN5h/WzzLRMFgZhClWccf2XIB4RSMC8JbquiB0e0/SH5AIfdQMdyHmYtv4seU7yV/TvAwPLJ1Yg==}
+    dependencies:
+      queue-tick: 1.0.1
+    dev: false
+
+  /protocol-buffers-encodings/1.2.0:
+    resolution: {integrity: sha512-daeNPuKh1NlLD1uDfbLpD+xyUTc07nEtfHwmBZmt/vH0B7VOM+JOCOpDcx9ZRpqHjAiIkGqyTDi+wfGSl17R9w==}
+    dependencies:
+      b4a: 1.6.1
+      signed-varint: 2.0.1
+      varint: 5.0.0
+    dev: false
+
+  /queue-tick/1.0.1:
+    resolution: {integrity: sha512-kJt5qhMxoszgU/62PLP1CJytzd2NKetjSRnyuj31fDd3Rlcz3fzlFdFLD1SItunPwyqEOkca6GbV612BWfaBag==}
+    dev: false
+
+  /same-data/1.0.0:
+    resolution: {integrity: sha512-Eqn7N2yV+aKMlUHTRqUwYG1Iv0cJqjlvLKj/GoP5PozJn361QaOYX14+v87r7NqQUZC22noP/LfLrSQiPwAygw==}
+    dev: false
+
+  /signed-varint/2.0.1:
+    resolution: {integrity: sha512-abgDPg1106vuZZOvw7cFwdCABddfJRz5akcCcchzTbhyhYnsG31y4AlZEgp315T7W3nQq5P4xeOm186ZiPVFzw==}
+    dependencies:
+      varint: 5.0.0
+    dev: false
+
+  /streamx/2.13.0:
+    resolution: {integrity: sha512-9jD4uoX0juNSIcv4PazT+97FpM4Mww3cp7PM23HRTLANhgb7K7n1mB45guH/kT5F4enl04kApOM3EeoUXSPfvw==}
+    dependencies:
+      fast-fifo: 1.1.0
+      queue-tick: 1.0.1
+    dev: false
+
+  /tslib/2.4.1:
+    resolution: {integrity: sha512-tGyy4dAjRIEwI7BzsB0lynWgOpfqjUdq91XXAlIWD2OwKBH7oCl/GZG/HT4BOHrTlPMOASlMQ7veyTqpmRcrNA==}
+    dev: true
+
+  /typescript/4.9.4:
+    resolution: {integrity: sha512-Uz+dTXYzxXXbsFpM86Wh3dKCxrQqUcVMxwU54orwlJjOpO3ao8L7j5lH+dWfTwgCwIuM9GQ2kvVotzYJMXTBZg==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+    dev: true
+
+  /unix-path-resolve/1.0.2:
+    resolution: {integrity: sha512-kG4g5nobBBaMnH2XbrS4sLUXEpx4nY2J3C6KAlAUcnahG2HChxSPVKWYrqEq76iTo+cyMkLUjqxGaQR2tz097Q==}
+    dev: false
+
+  /varint/5.0.0:
+    resolution: {integrity: sha512-gC13b/bWrqQoKY2EmROCZ+AR0jitc6DnDGaQ6Ls9QpKmuSgJB1eQ7H3KETtQm7qSdMWMKCmsshyCmUwMLh3OAA==}
+    dev: false

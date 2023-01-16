@@ -1,8 +1,10 @@
 {
 	"compilerOptions": {
 		"baseUrl": ".",
+		"outDir": "lib",
 		"moduleResolution": "node",
 		"module": "esnext",
+		"declaration": true,
 		"lib": ["esnext"],
 		"target": "esnext",
 		"isolatedModules": true,

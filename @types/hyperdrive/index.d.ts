@@ -1,8 +1,24 @@
 import type * as fs from 'fs'
-import {EventEmitter} from 'events'
+import { EventEmitter } from 'events'
 import Hyperbee from '../hyperbee'
 import Hypercore from '../hypercore'
-export=Hyperdrive;
+export = Hyperdrive;
+
+interface Entry {
+	seq: number,
+	key: string,
+	value: {
+		executable: Boolean, // whether the blob at path is an executable
+		linkname: null | string // if entry not symlink, otherwise a string to the entry this links to
+		blob: { // a Hyperblob id that can be used to fetch the blob associated with this entry
+			blockOffset: number,
+			blockLength: number,
+			byteOffset: number,
+			byteLength: number
+		},
+		metadata: null | Record<string, any>
+	}
+}
 
 declare class Hyperdrive extends EventEmitter {
 	constructor(corestore: any, key: any, opts?: Record<string, string>);
@@ -43,18 +59,18 @@ declare class Hyperdrive extends EventEmitter {
 	symlink(name: any, dst: any, { metadata }?: {
 		metadata?: any;
 	}): Promise<any>;
-	entry(name: any): any;
+	entry(name: fs.PathLike): Promise<Entry>;
 	diff(length: any, folder: any, opts: any): any;
 	downloadDiff(length: any, folder: any, opts: any): Promise<void>;
 	downloadRange(dbRanges: any, blobRanges: any): Promise<void>;
 	entries(opts: any): any;
-	download(folder: string, opts: any): any;
-	list(folder?: string, { recursive }?: {
+	download(folder: fs.PathLike, opts: any): any;
+	list(folder?: fs.PathLike, { recursive }?: {
 		recursive?: boolean;
 	}): any;
-	readdir(folder?: string): any;
+	readdir(folder?: fs.PathLike): any;
 	mirror(out: any, opts: any): any;
-	createReadStream: (path: fs.PathLike, options?: BufferEncoding)=> fs.ReadStream;
+	createReadStream: (path: fs.PathLike, options?: BufferEncoding) => fs.ReadStream;
 	createWriteStream(name: fs.PathLike, { executable, metadata }?: {
 		executable?: boolean;
 		metadata?: any;

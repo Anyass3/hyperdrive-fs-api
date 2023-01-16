@@ -2,6 +2,7 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
+import type { Readable } from 'stream';
 
 class Hyperdrive extends hyperdrive {
     constructor(store, dkey = undefined) {
@@ -14,7 +15,7 @@ class Hyperdrive extends hyperdrive {
     get metadata(): any {
         return //this.core.metadata
     }
-    get closed(): any {
+    get closed() {
         return this.core.closed
     }
     get readable(): boolean {
@@ -24,22 +25,48 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
     async exists(path: fs.PathLike) {
-        return !!this.entry(path)
+        return !!(this.entry(path) ?? (await this.toArray(this.list(path))).length)
     }
+
+    async ls(path, stat = true) {
+        const files = []
+        const This = this
+        for await (const item of this.readdir(path)) files.push({
+            name: item,
+            pathname: join(path, item),
+            stat: stat ? await This.stat(join(path, item)) : {}
+        });
+        return files
+    }
+
+    async toArray(read: Readable) {
+        const items = []
+        for await (const item of read) items.push(item);
+        return items
+    }
+
     async stat(path: fs.PathLike) {
-        const entry = this.entry(path)
-        if (!entry) return {};
-        return { ...entry.blob, ...(entry?.metadata ?? {}) }
+        const entry = await this.entry(path)
+        if (!entry) {
+            const items = (await this.toArray(this.readdir(path))).length
+            if (!items) throw ('Path does not exist');
+            return {
+                isDirectory: () => true,
+                items
+            }
+        }
+        return {
+            ...(entry.value.blob || {}), ...(entry.value.metadata || {}),
+            key: entry.key, seq: entry.seq, executable: entry.value.executable, linkname: entry.value.linkname,
+            isDirectory: () => !entry.value.blob
+        }
         // #revist required
     }
-    async mkdir(path: fs.PathLike) {
-        path = join(path as string, 'null')
-        await this.put(path, Buffer.from(''))
-        await this.del(path)
-        // #revist required
-    }
+    // async mkdir(path: fs.PathLike) {
+    //     await this.put(path, Buffer.from(''), {metadata: {directory: true}})
+    // }
     async rmdir(path: fs.PathLike) {
-        await this.del(join(path as string, '/'))
+        // await this.del(join(path as string, '/'))
         // #revist required
     }
     async _sort(list, { sorting, ordering }) {

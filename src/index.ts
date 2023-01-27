@@ -25,7 +25,7 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
     async exists(path: fs.PathLike) {
-        return !!(this.entry(path) ?? (await this.toArray(this.list(path))).length)
+        return !!(this.entry(path) || (await this.toArray(this.list(path))).length)
     }
 
     async ls(path, stat = true) {

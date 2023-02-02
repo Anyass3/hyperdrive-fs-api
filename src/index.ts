@@ -69,9 +69,10 @@ class Hyperdrive extends hyperdrive {
             const itemsCount = (await this.#toArray(this.readdir(path))).length
             if (!itemsCount) throw ('Path does not exist');
             return {
+                ...stat.value,
                 isDirectory: () => true,
                 isFile: () => false,
-                itemsCount
+                itemsCount,
             }
         }
         return {

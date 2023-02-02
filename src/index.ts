@@ -3,11 +3,17 @@ import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
 import type { Readable } from 'stream';
+import type HyperBee from 'hyperbee';
 
 class Hyperdrive extends hyperdrive {
+    folders: HyperBee;
+    stats: HyperBee;
+
     constructor(store, dkey = undefined) {
         if (dkey && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
         super(store, dkey);
+        this.folders = this.db.sub('folders', { keyEncoding: 'utf-8', valueEncoding: 'json' });
+        this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
     }
     get peers(): any[] {
         return this.core.peers
@@ -24,8 +30,9 @@ class Hyperdrive extends hyperdrive {
     get writable(): boolean {
         return this.core.writable
     }
+
     async exists(path: fs.PathLike) {
-        return !!(this.entry(path) || (await this.#toArray(super.list(path))).length)
+        return !!(this.entry(path) || await this.folders.get(path, undefined) || (await this.#toArray(super.list(path))).length)
     }
 
     override async list(path, { recursive, stat } = { recursive: false, stat: false }) {
@@ -57,26 +64,37 @@ class Hyperdrive extends hyperdrive {
 
     async stat(path: fs.PathLike) {
         const entry = await this.entry(path)
+        const stat = await this.stats.get(path, undefined);
         if (!entry) {
-            const items = (await this.#toArray(this.readdir(path))).length
-            if (!items) throw ('Path does not exist');
+            const itemsCount = (await this.#toArray(this.readdir(path))).length
+            if (!itemsCount) throw ('Path does not exist');
             return {
                 isDirectory: () => true,
-                items
+                isFile: () => false,
+                itemsCount
             }
         }
         return {
-            ...(entry.value.blob || {}), ...(entry.value.metadata || {}),
+            ...stat.value,
+            ...(entry.value.blob), ...(entry.value.metadata || {}),
             key: entry.key, seq: entry.seq, executable: entry.value.executable, linkname: entry.value.linkname,
-            isDirectory: () => !entry.value.blob
+            isDirectory: () => !entry.value.blob,
+            isFile: () => !!entry.value.blob,
+            size: (entry.value.blob).byteLength
         }
         // #revist required
     }
-    // async mkdir(path: fs.PathLike) {
-    //     await this.put(path, Buffer.from(''), {metadata: {directory: true}})
-    // }
+    async mkdir(path: fs.PathLike) {
+        await this.folders.put(path, null, undefined)
+    }
+
+    async del(path: fs.PathLike) {
+        await super.del(path)
+        await this.rmdir(path)
+    }
+
     async rmdir(path: fs.PathLike) {
-        // await this.del(join(path as string, '/'))
+        await this.folders.del(path, undefined)
         // #revist required
     }
     async #sort(list, { sorting, ordering }) {
@@ -123,11 +141,59 @@ class Hyperdrive extends hyperdrive {
     }
 
     // GRUD
-    async write(file, content, encoding) {
-        await this.put(file, Buffer.from(content, encoding));
+    async #setStat(path: string, method: 'access' | 'modify' | 'create' | 'change' = 'create', data: Record<string, any> = {}) {
+        let stat = (await this.stats.get(path, undefined))?.value
+        if (!stat && method != 'create') method = 'create';
+        if (stat && method != 'modify') method = 'modify';
+
+        const dt = new Date()
+        switch (method) {
+            case 'create':
+                stat = {
+                    atime: dt,
+                    mtime: dt,
+                    ctime: dt,
+                    birthtime: dt,
+                    atimeMs: dt.getTime(),
+                    mtimeMs: dt.getTime(),
+                    ctimeMs: dt.getTime(),
+                    birthtimeMs: dt.getTime(),
+                    ...data
+                }
+                break;
+            case 'change':
+            case 'modify':
+                stat = {
+                    ...stat,
+                    ...data,
+                    mtime: dt,
+                    ctime: dt,
+                    mtimeMs: dt.getTime(),
+                    ctimeMs: dt.getTime(),
+                }
+                break;
+            case 'access':
+                stat = {
+                    ...stat,
+                    ...data,
+                    atime: dt,
+                    atimeMs: dt.getTime(),
+                }
+                break;
+        }
+
+        this.stats.put(path, stat, undefined)
     }
-    async read(file, encoding) {
-        const content = await this.get(file);
+    async write(path: string, content, encoding) {
+        await this.put(path, Buffer.from(content, encoding));
+    }
+    async put(path: string, blob: Buffer, opts?) {
+        path = path.replace(/\/$/, '');
+        await super.put(path, blob, opts);
+        await this.#setStat(path)
+    }
+    async read(path: string, encoding) {
+        const content = await this.get(path);
         return content.toString(encoding)
     }
     async copy(source: string, dest: string) {

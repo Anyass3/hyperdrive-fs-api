@@ -1,9 +1,8 @@
 /// <reference types="node" />
-/// <reference types="node" />
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
-import type { Readable } from 'stream';
 declare class Hyperdrive extends hyperdrive {
+    #private;
     constructor(store: any, dkey?: any);
     get peers(): any[];
     get metadata(): any;
@@ -11,8 +10,10 @@ declare class Hyperdrive extends hyperdrive {
     get readable(): boolean;
     get writable(): boolean;
     exists(path: fs.PathLike): Promise<boolean>;
-    ls(path: any, stat?: boolean): Promise<any[]>;
-    toArray(read: Readable): Promise<any[]>;
+    list(path: any, { recursive, stat }?: {
+        recursive: boolean;
+        stat: boolean;
+    }): Promise<any[]>;
     stat(path: fs.PathLike): Promise<{
         isDirectory: () => boolean;
         items: number;
@@ -29,10 +30,6 @@ declare class Hyperdrive extends hyperdrive {
         items?: undefined;
     }>;
     rmdir(path: fs.PathLike): Promise<void>;
-    _sort(list: any, { sorting, ordering }: {
-        sorting: any;
-        ordering: any;
-    }): Promise<any>;
     $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
         offset?: number;
         limit?: number;

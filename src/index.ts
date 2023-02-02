@@ -25,30 +25,40 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
     async exists(path: fs.PathLike) {
-        return !!(this.entry(path) || (await this.toArray(this.list(path))).length)
+        return !!(this.entry(path) || (await this.#toArray(super.list(path))).length)
     }
 
-    async ls(path, stat = true) {
-        const files = []
+    override async list(path, { recursive, stat } = { recursive: false, stat: false }) {
         const This = this
-        for await (const item of this.readdir(path)) files.push({
-            name: item,
-            pathname: join(path, item),
-            stat: stat ? await This.stat(join(path, item)) : {}
-        });
-        return files
+        const mapper = async (item) => {
+            let name
+            let pathname
+            if (!recursive) {
+                name = item;
+                pathname = join(path, item)
+            } else {
+                name = item.key.split('/').at(-1)
+                pathname = item.key
+            }
+            return ({
+                name,
+                pathname,
+                stat: stat ? await This.stat(pathname) : undefined
+            })
+        };
+        return await this.#toArray(super[recursive ? 'list' : 'readdir'](path, { recursive }), mapper);
     }
 
-    async toArray(read: Readable) {
+    async #toArray<F extends (item: any) => Promise<any>>(read: Readable, mapper?: F) {
         const items = []
-        for await (const item of read) items.push(item);
+        for await (const item of read) items.push(mapper ? await mapper(item) : item);
         return items
     }
 
     async stat(path: fs.PathLike) {
         const entry = await this.entry(path)
         if (!entry) {
-            const items = (await this.toArray(this.readdir(path))).length
+            const items = (await this.#toArray(this.readdir(path))).length
             if (!items) throw ('Path does not exist');
             return {
                 isDirectory: () => true,
@@ -69,7 +79,7 @@ class Hyperdrive extends hyperdrive {
         // await this.del(join(path as string, '/'))
         // #revist required
     }
-    async _sort(list, { sorting, ordering }) {
+    async #sort(list, { sorting, ordering }) {
         if (sorting === 'name') {
             list.sort((a, b) => {
                 return ordering * a.name.localeCompare(b.name);
@@ -115,7 +125,6 @@ class Hyperdrive extends hyperdrive {
     // GRUD
     async write(file, content, encoding) {
         await this.put(file, Buffer.from(content, encoding));
-
     }
     async read(file, encoding) {
         const content = await this.get(file);

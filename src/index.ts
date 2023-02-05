@@ -85,18 +85,32 @@ class Hyperdrive extends hyperdrive {
         }
         // #revist required
     }
+    async #resolveDirStats(path: string, method: 'modify' | 'change' = 'modify') {
+        for (const dir of await this.resolveDirs(path)) {
+            await this.#setStat(dir, { method })
+        }
+    }
     async mkdir(path: fs.PathLike) {
-        await this.folders.put(path, null, undefined)
+        const dir = await this.folders.get(path, undefined);
+        if (dir) return dir;
+        this.#setStat(path as string, { method: 'create' });
+        return await this.folders.put(path, null, undefined)
     }
 
     async del(path: fs.PathLike) {
-        await super.del(path)
-        await this.rmdir(path)
+        await super.del(path);
+        await this.stats.del(path, undefined);
+        await this.#resolveDirStats(path as string);
     }
 
-    async rmdir(path: fs.PathLike) {
-        await this.folders.del(path, undefined)
-        // #revist required
+    async rmdir(path: fs.PathLike, { recursive } = { recursive: false }) {
+        const files = (await this.#toArray(this.readdir(path)))
+        if (recursive) {
+            for (const file in files) await this.del(file);
+        } else if (files.length) throw Error('Directory is not empty');
+        await this.folders.del(path, undefined);
+        await this.stats.del(path, undefined);
+        await this.#resolveDirStats(path as string);
     }
     async #sort(list, { sorting, ordering }) {
         if (sorting === 'name') {
@@ -142,7 +156,8 @@ class Hyperdrive extends hyperdrive {
     }
 
     // GRUD
-    async #setStat(path: string, method: 'access' | 'modify' | 'create' | 'change' = 'create', data: Record<string, any> = {}) {
+    async #setStat(path: string, { method = 'create', extras = {}, recursive = true } = {} as { method?: 'access' | 'modify' | 'create' | 'change', extras?: Record<string, any>, recursive?: boolean }) {
+        path = path.replace(/\/$/, '');
         let stat = (await this.stats.get(path, undefined))?.value
         if (!stat && method != 'create') method = 'create';
         if (stat && method != 'modify') method = 'modify';
@@ -159,14 +174,14 @@ class Hyperdrive extends hyperdrive {
                     mtimeMs: dt.getTime(),
                     ctimeMs: dt.getTime(),
                     birthtimeMs: dt.getTime(),
-                    ...data
+                    ...extras
                 }
                 break;
             case 'change':
             case 'modify':
                 stat = {
                     ...stat,
-                    ...data,
+                    ...extras,
                     mtime: dt,
                     ctime: dt,
                     mtimeMs: dt.getTime(),
@@ -176,14 +191,26 @@ class Hyperdrive extends hyperdrive {
             case 'access':
                 stat = {
                     ...stat,
-                    ...data,
+                    ...extras,
                     atime: dt,
                     atimeMs: dt.getTime(),
                 }
                 break;
         }
-
-        this.stats.put(path, stat, undefined)
+        await this.stats.put(path, stat, undefined);
+        if (recursive) await this.#resolveDirStats(path);
+    }
+    async resolveDirs(path: string) {
+        path = path.replace(/\/$/, '');
+        const paths = path.split('/');
+        const dirs: string[] = [];
+        for (let i = 0; i <= paths.length; i++) {
+            if (!paths[i + 2]) break;
+            const lastDir: string = (dirs.at(-1) || ('/' + paths[i]))
+            dirs.push(lastDir + (lastDir == '/' ? '' : '/') + paths[i + 1])
+        }
+        await Promise.all(dirs.map((dir) => this.mkdir(dir))) as string[];
+        return dirs;
     }
     async write(path: string, content, encoding) {
         await this.put(path, Buffer.from(content, encoding));

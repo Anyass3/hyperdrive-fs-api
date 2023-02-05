@@ -19,9 +19,11 @@ declare class Hyperdrive extends hyperdrive {
         stat: boolean;
     }): Promise<any[]>;
     stat(path: fs.PathLike): Promise<any>;
-    mkdir(path: fs.PathLike): Promise<void>;
+    mkdir(path: fs.PathLike): Promise<any>;
     del(path: fs.PathLike): Promise<void>;
-    rmdir(path: fs.PathLike): Promise<void>;
+    rmdir(path: fs.PathLike, { recursive }?: {
+        recursive: boolean;
+    }): Promise<void>;
     $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
         offset?: number;
         limit?: number;
@@ -32,6 +34,7 @@ declare class Hyperdrive extends hyperdrive {
         search?: string;
         sorting?: string;
     }): Promise<void>;
+    resolveDirs(path: string): Promise<string[]>;
     write(path: string, content: any, encoding: any): Promise<void>;
     put(path: string, blob: Buffer, opts?: any): Promise<void>;
     read(path: string, encoding: any): Promise<any>;

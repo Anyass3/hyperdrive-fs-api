@@ -14,18 +14,13 @@ declare class Hyperdrive extends hyperdrive {
     get readable(): boolean;
     get writable(): boolean;
     readdir(folder?: string): any;
-    getFolder(path: any): Promise<any>;
     exists(path: fs.PathLike): Promise<boolean>;
     list(path: string, { recursive, stat }?: {
         recursive?: boolean;
         stat?: boolean;
     }): Promise<any[]>;
     stat(path: string): Promise<any>;
-    mkdir(path: fs.PathLike): Promise<any>;
     del(path: string, resolveStats?: boolean): Promise<any>;
-    rmdir(path: fs.PathLike, { recursive }?: {
-        recursive?: boolean;
-    }): Promise<void>;
     $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
         offset?: number;
         limit?: number;

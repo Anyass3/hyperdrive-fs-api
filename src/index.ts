@@ -90,12 +90,8 @@ class Hyperdrive extends hyperdrive {
         })
     }
 
-    getFolder(path) {
-        return this.stats.get(join('/', path, '/'))
-    }
-
     async exists(path: fs.PathLike) {
-        return !!(await this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.readdir(path))).length)
+        return !!(await this.entry(path) || (await this.#toArray(super.readdir(path))).length)
     }
 
     #list(path: string) {
@@ -122,7 +118,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     override async list(path: string, { recursive = false, stat = false } = {}) {
-        const This = this
+        const self = this
         const mapper = async (item) => {
             let name
             let pathname
@@ -136,7 +132,7 @@ class Hyperdrive extends hyperdrive {
             return ({
                 name,
                 pathname,
-                stat: stat ? await This.stat(pathname) : undefined
+                stat: stat ? await self.stat(pathname) : undefined
             })
         };
         let readable: Readable;
@@ -185,35 +181,12 @@ class Hyperdrive extends hyperdrive {
         }
     }
 
-    async #mkdir(path: fs.PathLike, { recursive = false } = {}) {
-        path = join('/', path as string, '/')
-        if (recursive) await this.resolveDirs(path);
-        let dir = await this.stats.get(path);
-        if (dir) return dir;
-        dir = await this.#setStat(path as string, { method: 'create' });
-        return dir;
-    }
-    mkdir(path: fs.PathLike) {
-        return this.#mkdir(path, { recursive: true })
-    }
-
     async del(path: string, resolveStats = true) {
         path = path.replace(/\/$/, '');
         const file = await super.del(path);
         await this.stats.del(path);
         if (resolveStats) await this.#resolveDirStats(path as string);
         return file;
-    }
-
-    async rmdir(path: fs.PathLike, { recursive = false } = {}) {
-        path = join('/', path as string, '/')
-        const files = (await this.#toArray(this.readdir(path)))
-        if (recursive) {
-            for (const file in files) await this.del(file);
-        } else if (files.length) throw Error('Directory is not empty');
-        const dir = await this.stats.del(path);
-        await this.#resolveDirStats(path as string);
-        return dir;
     }
 
     async #sort(list, { sorting, ordering }) {
@@ -322,7 +295,7 @@ class Hyperdrive extends hyperdrive {
 
     async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
-        await this.resolveDirs(path);
+        await this.#resolveDirStats(path);
         await super.put(path, blob, opts);
         await this.#setStat(path)
     }

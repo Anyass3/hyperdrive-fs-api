@@ -21,25 +21,25 @@ declare class HyperBee {
 	ready(): any;
 	get version(): number;
 	update(): any;
-	getRoot(ensureHeader: any, opts: any, batch?: HyperBee): Promise<TreeNode>;
+	getRoot(ensureHeader: any, opts?: any, batch?: HyperBee): Promise<TreeNode>;
 	getKey(seq: any): Promise<any>;
-	getBlock(seq: any, opts: any, batch?: HyperBee): Promise<BlockEntry>;
-	peek(opts: any): Promise<any>;
+	getBlock(seq: any, opts?: any, batch?: HyperBee): Promise<BlockEntry>;
+	peek(opts?: any): Promise<any>;
 	createRangeIterator(opts?: {}, active?: any): RangeIterator;
 	createReadStream(
-		opts: any
+		opts?: any
 	): Readable<any, any, any, true, false, import('streamx').ReadableEvents<any>>;
 	createHistoryStream(
-		opts: any
+		opts?: any
 	): Readable<any, any, any, true, false, import('streamx').ReadableEvents<any>>;
 	createDiffStream(
 		right: any,
-		opts: any
+		opts?: any
 	): Readable<any, any, any, true, false, import('streamx').ReadableEvents<any>>;
-	get(key: any, opts: any): Promise<any>;
-	put(key: any, value: any, opts: any): Promise<void>;
-	batch(opts: any): Batch;
-	del(key: any, opts: any): Promise<void>;
+	get(key: any, opts?: any): Promise<any>;
+	put(key: any, value: any, opts?: any): Promise<void>;
+	batch(opts?: any): Batch;
+	del(key: any, opts?: any): Promise<void>;
 	checkout(version: any): HyperBee;
 	snapshot(): HyperBee;
 	sub(prefix: any, opts?: {}): HyperBee;

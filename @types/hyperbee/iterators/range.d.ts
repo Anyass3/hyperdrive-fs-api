@@ -27,4 +27,5 @@ declare class RangeIterator {
     open(): Promise<void>;
     _open(): Promise<void>;
     next(): Promise<any>;
+    close(): Promise<any>;
 }

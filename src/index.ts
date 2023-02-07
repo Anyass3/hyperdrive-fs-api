@@ -14,6 +14,7 @@ class Hyperdrive extends hyperdrive {
         super(store, dkey);
         this.folders = this.db.sub('folders', { keyEncoding: 'utf-8', valueEncoding: 'json' });
         this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
+        // this.#mkdir('/');
     }
     get peers(): any[] {
         return this.core.peers
@@ -53,7 +54,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async exists(path: fs.PathLike) {
-        return !!(await this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.list(path))).length)
+        return !!(await this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.readdir(path))).length)
     }
 
     override async list(path: string, { recursive = false, stat = false } = {}) {
@@ -62,10 +63,10 @@ class Hyperdrive extends hyperdrive {
             let name
             let pathname
             if (!recursive) {
-                name = item;
+                name = item.replace(/(^\/)|(\/$)/g, '');
                 pathname = join(path, item)
             } else {
-                name = item.key.replace(/\/$/, '').split('/').at(-1)
+                name = item.key.replace(/(^\/)|(\/$)/g, '').split('/').at(-1)
                 pathname = item.key
             }
             return ({
@@ -74,7 +75,7 @@ class Hyperdrive extends hyperdrive {
                 stat: stat ? await This.stat(pathname) : undefined
             })
         };
-        const folders = await this.#toArray(this.readFolders(path, { recursive }), mapper);
+        const folders = await this.#toArray(this.readFolders(path, { recursive }), recursive ? mapper : (path) => mapper(join(path, '/')));
         const files = await this.#toArray(super[recursive ? 'list' : 'readdir'](path, { recursive }), mapper);
         return [...folders, ...files];
     }

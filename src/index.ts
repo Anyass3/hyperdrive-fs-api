@@ -53,7 +53,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async exists(path: fs.PathLike) {
-        return !!(this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.list(path))).length)
+        return !!(await this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.list(path))).length)
     }
 
     override async list(path: string, { recursive = false, stat = false } = {}) {
@@ -87,19 +87,19 @@ class Hyperdrive extends hyperdrive {
 
     async stat(path: fs.PathLike) {
         const entry = await this.entry(path)
-        const stat = await this.stats.get(path);
+        const stat = (await this.stats.get(path))?.value;
         if (!entry) {
             const itemsCount = (await this.#toArray(this.readdir(path))).length
-            if (!itemsCount && !stat?.value) throw ('Path does not exist');
+            if (!itemsCount && !stat) throw ('Path does not exist');
             return {
-                ...stat.value,
+                ...(stat || {}),
                 isDirectory: () => true,
                 isFile: () => false,
                 itemsCount,
             }
         }
         return {
-            ...stat.value,
+            ...(stat || {}),
             ...(entry.value.blob), ...(entry.value.metadata || {}),
             key: entry.key, seq: entry.seq, executable: entry.value.executable, linkname: entry.value.linkname,
             isDirectory: () => !entry.value.blob,
@@ -115,13 +115,17 @@ class Hyperdrive extends hyperdrive {
         }
     }
 
-    async mkdir(path: fs.PathLike) {
+    async #mkdir(path: fs.PathLike, { recursive = false } = {}) {
         path = join('/', path as string, '/')
+        if (recursive) await this.resolveDirs(path);
         let dir = await this.folders.get(path);
         if (dir) return dir;
         dir = await this.folders.put(path, null)
         await this.#setStat(path as string, { method: 'create' });
         return dir;
+    }
+    mkdir(path: fs.PathLike) {
+        return this.#mkdir(path, { recursive: true })
     }
 
     async del(path: string, resolveStats = true) {
@@ -240,7 +244,7 @@ class Hyperdrive extends hyperdrive {
             const lastDir: string = (dirs.at(-1) || paths[i])
             dirs.push(join('/', lastDir, paths[i + 1], '/'))
         }
-        await Promise.all(dirs.map((dir) => this.mkdir(dir))) as string[];
+        await Promise.all(dirs.map((dir) => this.#mkdir(dir, { recursive: false }))) as string[];
         return dirs;
     }
 
@@ -250,9 +254,11 @@ class Hyperdrive extends hyperdrive {
 
     async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
+        await this.resolveDirs(path);
         await super.put(path, blob, opts);
         await this.#setStat(path)
     }
+
     async read(path: string, encoding) {
         const content = await this.get(path);
         return content.toString(encoding);

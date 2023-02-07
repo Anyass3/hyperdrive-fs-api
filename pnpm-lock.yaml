@@ -10,11 +10,13 @@ specifiers:
   hyperdrive: 11.0.0-alpha.10
   nodemon: ^2.0.20
   random-access-memory: ^6.1.0
+  streamx: ^2.13.2
   tslib: ^2.4.1
   typescript: ^4.9.3
 
 dependencies:
   hyperdrive: 11.0.0-alpha.10
+  streamx: 2.13.2
 
 devDependencies:
   '@types/hyperbee': link:@types/hyperbee
@@ -43,7 +45,7 @@ packages:
       noise-handshake: 3.0.2
       sodium-secretstream: 1.1.0
       sodium-universal: 4.0.0
-      streamx: 2.13.0
+      streamx: 2.13.2
       timeout-refresh: 2.0.1
     dev: true
 
@@ -420,7 +422,7 @@ packages:
       codecs: 3.0.0
       mutexify: 1.4.0
       protocol-buffers-encodings: 1.2.0
-      streamx: 2.13.0
+      streamx: 2.13.2
     dev: false
 
   /hyperblobs/2.0.1:
@@ -428,7 +430,7 @@ packages:
     dependencies:
       b4a: 1.6.1
       mutexify: 1.4.0
-      streamx: 2.13.0
+      streamx: 2.13.2
     dev: false
 
   /hypercore-crypto/3.3.1:
@@ -457,7 +459,7 @@ packages:
       random-array-iterator: 1.0.0
       safety-catch: 1.0.2
       sodium-universal: 4.0.0
-      streamx: 2.13.0
+      streamx: 2.13.2
       xache: 1.1.0
       z32: 1.0.0
     dev: true
@@ -469,7 +471,7 @@ packages:
       hyperblobs: 2.0.1
       is-options: 1.0.2
       mirror-drive: 1.2.1
-      streamx: 2.13.0
+      streamx: 2.13.2
       unix-path-resolve: 1.0.2
     dev: false
 
@@ -916,8 +918,8 @@ packages:
     resolution: {integrity: sha512-oeVtt7eWQS+Na6F//S4kJ2K2VbRlS9D43mAlMyVpVWovy9o+jfgH8O9agzANzaiLjclA0oYzUXEM4PurhSUChw==}
     dev: true
 
-  /streamx/2.13.0:
-    resolution: {integrity: sha512-9jD4uoX0juNSIcv4PazT+97FpM4Mww3cp7PM23HRTLANhgb7K7n1mB45guH/kT5F4enl04kApOM3EeoUXSPfvw==}
+  /streamx/2.13.2:
+    resolution: {integrity: sha512-+TWqixPhGDXEG9L/XczSbhfkmwAtGs3BJX5QNU6cvno+pOLKeszByWcnaTu6dg8efsTYqR8ZZuXWHhZfgrxMvA==}
     dependencies:
       fast-fifo: 1.1.0
       queue-tick: 1.0.1

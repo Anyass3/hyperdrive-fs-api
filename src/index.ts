@@ -2,7 +2,7 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
-import type { Readable } from 'stream';
+import { pipeline, Readable, Transform, } from 'streamx';
 import type HyperBee from 'hyperbee';
 
 class Hyperdrive extends hyperdrive {
@@ -12,9 +12,7 @@ class Hyperdrive extends hyperdrive {
     constructor(store, dkey = undefined) {
         if (dkey && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
         super(store, dkey);
-        this.folders = this.db.sub('folders', { keyEncoding: 'utf-8', valueEncoding: 'json' });
         this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
-        // this.#mkdir('/');
     }
     get peers(): any[] {
         return this.core.peers
@@ -32,29 +30,95 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
 
-    getFolder(path) {
-        return this.folders.get(join('/', path, '/'))
+    readdir(folder = '/') {
+        if (folder.endsWith('/')) folder = folder.slice(0, -1)
+        return this.#shallowReadStream(folder, true)
     }
 
-    readFolders(path, { recursive = false } = {}) {
-        /** A nice hack */
+    #getNodeName(node, folder) {
+        const suffix = node.key.slice(folder.length + 1)
+        const i = suffix.indexOf('/')
+        const name = i === -1 ? suffix : suffix.slice(0, i)
+        return [name, node.value ? name + '/' : null]
+    }
+
+    #shallowReadStream(folder, keys) {
         const self = this;
-        const superList = super.list;
+        let prev = '/'
+        return new Readable({
+            async read(cb) {
+                let node = null
+                /** in case a file and a folder have the same name*/
+                let node2 = null
 
-        const obj = ({
-            entries: self.entries,
-            files: self.folders,
-            read: self.readdir,
-            list: superList,
-        });
+                try {
+                    const ite = self.files.createRangeIterator({
+                        gt: folder + prev,
+                        lt: folder + '0', limit: 2
+                    })
+                    try {
+                        await ite.open()
+                        node = await ite.next()
+                        const next = await ite.next()
+                        if (next) {
+                            if (next.key.startsWith(node.key)) node2 = { seq: null, key: node.key + '/', value: null }
+                        }
 
-        if (!recursive)
-            return obj.read(join('/', path, '/'));
-        return obj.list(join('/', path, '/'));
+                    } finally {
+                        await ite.close()
+                    }
+                } catch (err) {
+                    return cb(err)
+                }
+
+                if (!node) {
+                    this.push(null)
+                    return cb(null)
+                }
+                const [name, dir] = self.#getNodeName(node, folder)
+
+                prev = '/' + name + '0'
+
+                if (node2) {
+                    this.push(keys ? name : node)
+                    this.push(keys ? name + '/' : node2)
+                } else {
+                    this.push(keys ? dir || name : node)
+                }
+                cb(null)
+            }
+        })
+    }
+
+    getFolder(path) {
+        return this.stats.get(join('/', path, '/'))
     }
 
     async exists(path: fs.PathLike) {
         return !!(await this.entry(path) || await this.getFolder(path) || (await this.#toArray(super.readdir(path))).length)
+    }
+
+    #list(path: string) {
+        path = path.replace(/\/$/, '');
+        let dirs = [];
+        const self = this
+        return pipeline(
+            this.entries({
+                gt: path + '/', lt: path + '0'
+            }),
+            new Transform({
+                transform(chunk, callback) {
+                    dirs = [...new Set([...dirs, ...self.resolveDirs(chunk.key)])]
+                    this.push(chunk)
+                    callback()
+                },
+                flush(cb) {
+                    dirs.forEach((dir) => {
+                        this.push({ key: dir, seq: null, value: null })
+                    })
+                    cb()
+                }
+            }))
     }
 
     override async list(path: string, { recursive = false, stat = false } = {}) {
@@ -75,9 +139,14 @@ class Hyperdrive extends hyperdrive {
                 stat: stat ? await This.stat(pathname) : undefined
             })
         };
-        const folders = await this.#toArray(this.readFolders(path, { recursive }), recursive ? mapper : (path) => mapper(join(path, '/')));
-        const files = await this.#toArray(super[recursive ? 'list' : 'readdir'](path, { recursive }), mapper);
-        return [...folders, ...files];
+        let readable: Readable;
+        if (recursive) {
+            readable = this.#list(path)
+        } else {
+            readable = this.readdir(path)
+        }
+        return await this.#toArray(readable, mapper);
+
     }
 
     async #toArray<F extends (item: any) => Promise<any>>(read: Readable, mapper?: F) {
@@ -86,7 +155,7 @@ class Hyperdrive extends hyperdrive {
         return items
     }
 
-    async stat(path: fs.PathLike) {
+    async stat(path: string) {
         const entry = await this.entry(path)
         const stat = (await this.stats.get(path))?.value;
         if (!entry) {
@@ -119,10 +188,9 @@ class Hyperdrive extends hyperdrive {
     async #mkdir(path: fs.PathLike, { recursive = false } = {}) {
         path = join('/', path as string, '/')
         if (recursive) await this.resolveDirs(path);
-        let dir = await this.folders.get(path);
+        let dir = await this.stats.get(path);
         if (dir) return dir;
-        dir = await this.folders.put(path, null)
-        await this.#setStat(path as string, { method: 'create' });
+        dir = await this.#setStat(path as string, { method: 'create' });
         return dir;
     }
     mkdir(path: fs.PathLike) {
@@ -143,7 +211,7 @@ class Hyperdrive extends hyperdrive {
         if (recursive) {
             for (const file in files) await this.del(file);
         } else if (files.length) throw Error('Directory is not empty');
-        const dir = await this.folders.del(path);
+        const dir = await this.stats.del(path);
         await this.#resolveDirStats(path as string);
         return dir;
     }
@@ -236,7 +304,7 @@ class Hyperdrive extends hyperdrive {
         await this.stats.put(path, stat);
         if (recursive) await this.#resolveDirStats(path);
     }
-    async resolveDirs(path: string) {
+    resolveDirs(path: string) {
         path = path.replace(/\/$/, '');
         const paths = path.split('/');
         const dirs: string[] = [];
@@ -245,7 +313,6 @@ class Hyperdrive extends hyperdrive {
             const lastDir: string = (dirs.at(-1) || paths[i])
             dirs.push(join('/', lastDir, paths[i + 1], '/'))
         }
-        await Promise.all(dirs.map((dir) => this.#mkdir(dir, { recursive: false }))) as string[];
         return dirs;
     }
 

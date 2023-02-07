@@ -49,3 +49,21 @@ test('create folders/directories', async t => {
     t.absent(list1[0].stat)
     t.ok(list3[0].stat)
 })
+
+test('create files', async t => {
+    const drive = getDrive();
+    await drive.write('/dir1/dir2/file.txt', 'hi there', 'utf-8');
+
+    const list1 = await drive.list('/', { recursive: true });
+    const list2 = await drive.list('/', { recursive: false });
+
+    // console.log(list2)
+    t.is(list1.length, 3)
+    t.is(list2.length, 1) // needs resolving;
+
+    t.ok(await drive.exists('/dir1/dir2/file.txt'))
+    t.absent(list1[0].stat)
+
+    t.comment('comparing buffer to buffer')
+    t.alike(Buffer.from('hi there'), await drive.get('/dir1/dir2/file.txt'))
+})

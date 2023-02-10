@@ -5,6 +5,9 @@ import { join } from 'path';
 import { pipeline, Readable, Transform, } from 'streamx';
 import type HyperBee from 'hyperbee';
 
+type HyperBlob = { byteOffset: number; blockOffset: number; blockLength: number; byteLength: number }
+type Node = { seq: number | null; key: string; value: HyperBlob | null }
+
 class Hyperdrive extends hyperdrive {
     folders: HyperBee;
     stats: HyperBee;
@@ -30,62 +33,90 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
 
-    readdir(folder = '/') {
+    readdir(folder = '/', { stat = false, nameOnly = false, fileOnly = false, readable = false } = {}) {
         if (folder.endsWith('/')) folder = folder.slice(0, -1)
-        return this.#shallowReadStream(folder, true)
+        const _readable: Readable = this.#shallowReadStream(folder, { nameOnly, fileOnly, stat })
+        if (readable) return _readable;
+        return this.#toArray(_readable);
     }
 
     #getNodeName(node, folder) {
         const suffix = node.key.slice(folder.length + 1)
         const i = suffix.indexOf('/')
         const name = i === -1 ? suffix : suffix.slice(0, i)
-        return [name, node.value ? name + '/' : null]
+        const isFile = node.key.endsWith(name) && node.value;
+        return { name, dir: !isFile ? name + '/' : null, pathname: join(folder, name, !isFile ? '/' : '') }
     }
 
-    #shallowReadStream(folder, keys) {
+    async #iteratorPeek(folder: string, prev: string, fileOnly = false) {
+        let nodes = [null, null, false] as unknown as [Node, Node, /*skip:*/boolean];
+        /** Yes two nodes in case a file and a folder have the same name*/
+        const ite = this.files.createRangeIterator({
+            gt: folder + prev,
+            lt: folder + '0', limit: 2
+        })
+        try {
+            await ite.open()
+            nodes[0] = await ite.next()
+            if (!fileOnly) {
+                const next = await ite.next()
+                if (next) {
+                    if (next.key.startsWith(nodes[0].key)) nodes[1] = { seq: null, key: nodes[0].key + '/', value: null }
+                }
+            } else if (!nodes[0].value) nodes[2] = true;
+        } finally {
+            await ite.close()
+        }
+        return nodes;
+    }
+
+    async #mapper(item, { path = '', stat = false } = {}) {
         const self = this;
-        let prev = '/'
+        let name: string;
+        let pathname: string;
+        if (typeof item == 'string') {
+            name = item.replace(/(^\/)|(\/$)/g, '');
+            pathname = join(path, item)
+        } else {
+            name = item.key.replace(/(^\/)|(\/$)/g, '').split('/').at(-1)
+            pathname = item.key
+        }
+        const mapped = ({
+            name,
+            pathname
+        })
+        if (!stat) return mapped;
+        mapped['stat'] = await self.stat(pathname);
+        return mapped;
+    };
+
+    #shallowReadStream(folder: string, { nameOnly = false, fileOnly = false, stat = false } = {}) {
+        const self = this;
+        let prev = '/';
         return new Readable({
             async read(cb) {
-                let node = null
-                /** in case a file and a folder have the same name*/
-                let node2 = null
+                const [node, node2, skip] = await self.#iteratorPeek(folder, prev, fileOnly).catch(cb);
 
-                try {
-                    const ite = self.files.createRangeIterator({
-                        gt: folder + prev,
-                        lt: folder + '0', limit: 2
-                    })
-                    try {
-                        await ite.open()
-                        node = await ite.next()
-                        const next = await ite.next()
-                        if (next) {
-                            if (next.key.startsWith(node.key)) node2 = { seq: null, key: node.key + '/', value: null }
-                        }
-
-                    } finally {
-                        await ite.close()
-                    }
-                } catch (err) {
-                    return cb(err)
+                if (skip) {
+                    return cb(null);
                 }
 
                 if (!node) {
-                    this.push(null)
-                    return cb(null)
+                    this.push(null);
+                    return cb(null);
                 }
-                const [name, dir] = self.#getNodeName(node, folder)
 
-                prev = '/' + name + '0'
+                const { name, dir, pathname } = self.#getNodeName(node, folder);
 
+                prev = '/' + name + '0';
                 if (node2) {
-                    this.push(keys ? name : node)
-                    this.push(keys ? name + '/' : node2)
-                } else {
-                    this.push(keys ? dir || name : node)
+                    this.push(!nameOnly ? await self.#mapper(node, { stat }) : name);
+                    this.push(!nameOnly ? await self.#mapper({ key: join(pathname, '/') }, { stat }) : name + '/');
                 }
-                cb(null)
+                else {
+                    this.push(!nameOnly ? await self.#mapper({ key: pathname }, { stat }) : dir || name);
+                }
+                cb(null);
             }
         })
     }
@@ -94,55 +125,40 @@ class Hyperdrive extends hyperdrive {
         return !!(await this.entry(path) || (await this.#toArray(super.readdir(path))).length)
     }
 
-    #list(path: string) {
-        path = path.replace(/\/$/, '');
+    #list(folder: string, { fileOnly = false, stat = false } = {}) {
+        folder = folder.replace(/\/$/, '');
         let dirs = [];
-        const self = this
+        const self = this;
         return pipeline(
             this.entries({
-                gt: path + '/', lt: path + '0'
+                gt: folder + '/', lt: folder + '0'
             }),
             new Transform({
-                transform(chunk, callback) {
-                    dirs = [...new Set([...dirs, ...self.resolveDirs(chunk.key)])]
-                    this.push(chunk)
-                    callback()
+                transform(node: Node, callback) {
+                    if (!fileOnly) dirs = [...new Set([...dirs, ...self.getDirs(node.key)])]
+                    self.#mapper(node, { stat }).then((node) => {
+                        this.push(node)
+                    }).finally(callback);
                 },
-                flush(cb) {
+                flush(callback) {
                     dirs.forEach((dir) => {
-                        this.push({ key: dir, seq: null, value: null })
+                        self.#mapper({ key: dir }, { stat }).then((node) => {
+                            this.push(node)
+                        }).finally(callback);
                     })
-                    cb()
                 }
             }))
     }
 
-    override async list(path: string, { recursive = false, stat = false } = {}) {
-        const self = this
-        const mapper = async (item) => {
-            let name
-            let pathname
-            if (!recursive) {
-                name = item.replace(/(^\/)|(\/$)/g, '');
-                pathname = join(path, item)
-            } else {
-                name = item.key.replace(/(^\/)|(\/$)/g, '').split('/').at(-1)
-                pathname = item.key
-            }
-            return ({
-                name,
-                pathname,
-                stat: stat ? await self.stat(pathname) : undefined
-            })
-        };
-        let readable: Readable;
+    override async list(path: string, { recursive = true, stat = false, fileOnly = false, readable = false } = {}) {
+        let _readable: Readable;
         if (recursive) {
-            readable = this.#list(path)
+            _readable = this.#list(path, { stat, fileOnly })
         } else {
-            readable = this.readdir(path)
+            _readable = this.readdir(path, { stat, fileOnly, readable: true })
         }
-        return await this.#toArray(readable, mapper);
-
+        if (readable) return _readable;
+        return await this.#toArray(_readable);
     }
 
     async #toArray<F extends (item: any) => Promise<any>>(read: Readable, mapper?: F) {
@@ -155,7 +171,7 @@ class Hyperdrive extends hyperdrive {
         const entry = await this.entry(path)
         const stat = (await this.stats.get(path))?.value;
         if (!entry) {
-            const itemsCount = (await this.#toArray(this.readdir(path))).length
+            const itemsCount = (await this.readdir(path, { readable: false })).length
             if (!itemsCount && !stat) throw ('Path does not exist');
             return {
                 ...(stat || {}),
@@ -176,12 +192,12 @@ class Hyperdrive extends hyperdrive {
     }
 
     async #resolveDirStats(path: string, method: 'modify' | 'change' = 'modify') {
-        for (const dir of await this.resolveDirs(path)) {
+        for (const dir of await this.getDirs(path)) {
             await this.#setStat(dir, { method, recursive: false })
         }
     }
 
-    async del(path: string, resolveStats = true) {
+    override async del(path: string, resolveStats = true) {
         path = path.replace(/\/$/, '');
         const file = await super.del(path);
         await this.stats.del(path);
@@ -277,7 +293,7 @@ class Hyperdrive extends hyperdrive {
         await this.stats.put(path, stat);
         if (recursive) await this.#resolveDirStats(path);
     }
-    resolveDirs(path: string) {
+    getDirs(path: string) {
         path = path.replace(/\/$/, '');
         const paths = path.split('/');
         const dirs: string[] = [];
@@ -293,7 +309,7 @@ class Hyperdrive extends hyperdrive {
         await this.put(path, Buffer.from(content, encoding));
     }
 
-    async put(path: string, blob: Buffer, opts?) {
+    override async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
         await this.#resolveDirStats(path);
         await super.put(path, blob, opts);

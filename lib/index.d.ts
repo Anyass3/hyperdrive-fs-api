@@ -13,12 +13,19 @@ declare class Hyperdrive extends hyperdrive {
     get closed(): boolean;
     get readable(): boolean;
     get writable(): boolean;
-    readdir(folder?: string): any;
+    readdir(folder?: string, { stat, nameOnly, fileOnly, readable }?: {
+        stat?: boolean;
+        nameOnly?: boolean;
+        fileOnly?: boolean;
+        readable?: boolean;
+    }): any;
     exists(path: fs.PathLike): Promise<boolean>;
-    list(path: string, { recursive, stat }?: {
+    list(path: string, { recursive, stat, fileOnly, readable }?: {
         recursive?: boolean;
         stat?: boolean;
-    }): Promise<any[]>;
+        fileOnly?: boolean;
+        readable?: boolean;
+    }): Promise<any>;
     stat(path: string): Promise<any>;
     del(path: string, resolveStats?: boolean): Promise<any>;
     $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
@@ -31,7 +38,7 @@ declare class Hyperdrive extends hyperdrive {
         search?: string;
         sorting?: string;
     }): Promise<void>;
-    resolveDirs(path: string): string[];
+    getDirs(path: string): string[];
     write(path: string, content: any, encoding: any): Promise<void>;
     put(path: string, blob: Buffer, opts?: any): Promise<void>;
     read(path: string, encoding: any): Promise<any>;

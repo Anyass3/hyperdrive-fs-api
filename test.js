@@ -36,21 +36,32 @@ async function main() {
 
 console.log('testing...');
 
-test('create files', async t => {
+test('create files/dirs', async t => {
     const drive = getDrive();
     await drive.write('/dir1/dir2/file.txt', 'hi there', 'utf-8');
     await drive.write('/dir1/file.txt', 'hi', 'utf-8');
 
     const list1 = await drive.list('/', { recursive: true });
-    const list2 = await drive.list('/dir1', { recursive: false });
+    const list2 = await drive.readdir('/dir1');
 
-    // console.log(list2)
     t.is(list1.length, 4)
-    t.is(list2.length, 2) // needs resolving;
+    t.is(list2.length, 2)
 
     t.ok(await drive.exists('/dir1/dir2/file.txt'))
-    t.absent(list1[0].stat)
-
     t.comment('comparing buffer to buffer')
     t.alike(Buffer.from('hi there'), await drive.get('/dir1/dir2/file.txt'))
+})
+test('files/dirs stats', async t => {
+    const drive = getDrive();
+    await drive.write('/dir1/dir2/file.txt', 'hi there', 'utf-8');
+    await drive.write('/dir1/file.txt', 'hi', 'utf-8');
+
+    const list1 = await drive.list('/', { recursive: true });
+    const list2 = await drive.readdir('/dir1', { stat: true });
+
+    // console.log(list2, list1)
+    t.absent(list1[0].stat)
+    t.ok(list2[0].stat)
+    t.ok((await drive.stat('/dir1/dir2/file.txt')).birthtimeMs < (await drive.stat('/dir1/file.txt')).birthtimeMs)
+    t.ok((await drive.stat('/dir1/dir2/')).mtimeMs < (await drive.stat('/dir1/')).mtimeMs)
 })

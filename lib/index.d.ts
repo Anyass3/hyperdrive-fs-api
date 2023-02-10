@@ -3,9 +3,9 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import type HyperBee from 'hyperbee';
+import type * as TT from './typings';
 declare class Hyperdrive extends hyperdrive {
     #private;
-    folders: HyperBee;
     stats: HyperBee;
     constructor(store: any, dkey?: any);
     get peers(): any[];
@@ -13,20 +13,15 @@ declare class Hyperdrive extends hyperdrive {
     get closed(): boolean;
     get readable(): boolean;
     get writable(): boolean;
-    readdir(folder?: string, { stat, nameOnly, fileOnly, readable }?: {
-        stat?: boolean;
-        nameOnly?: boolean;
-        fileOnly?: boolean;
-        readable?: boolean;
-    }): any;
+    readdir<S extends boolean, B extends boolean>(folder?: string, { stat, nameOnly, fileOnly, readable }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
     exists(path: fs.PathLike): Promise<boolean>;
-    list(path: string, { recursive, stat, fileOnly, readable }?: {
-        recursive?: boolean;
-        stat?: boolean;
-        fileOnly?: boolean;
-        readable?: boolean;
-    }): Promise<any>;
-    stat(path: string): Promise<any>;
+    list<S extends boolean, B extends boolean>(path: string, { recursive, stat, fileOnly, readable }?: Partial<{
+        recursive: boolean;
+        stat: S;
+        fileOnly: boolean;
+        readable: B;
+    }>): TT.List<S, B>;
+    stat(path: string): Promise<TT.Stat>;
     del(path: string, resolveStats?: boolean): Promise<any>;
     $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
         offset?: number;

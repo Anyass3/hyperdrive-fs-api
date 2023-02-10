@@ -2,14 +2,13 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
-import { pipeline, Readable, Transform, } from 'streamx';
+import * as Stream from 'stream'
+// @ts-ignore
+import { Readable, Transform, pipeline } from 'streamx';
 import type HyperBee from 'hyperbee';
-
-type HyperBlob = { byteOffset: number; blockOffset: number; blockLength: number; byteLength: number }
-type Node = { seq: number | null; key: string; value: HyperBlob | null }
+import type * as TT from './typings'
 
 class Hyperdrive extends hyperdrive {
-    folders: HyperBee;
     stats: HyperBee;
 
     constructor(store, dkey = undefined) {
@@ -33,11 +32,11 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
 
-    readdir(folder = '/', { stat = false, nameOnly = false, fileOnly = false, readable = false } = {}) {
+    readdir<S extends boolean, B extends boolean>(folder = '/', { stat = false, nameOnly = false, fileOnly = false, readable = false } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
         if (folder.endsWith('/')) folder = folder.slice(0, -1)
-        const _readable: Readable = this.#shallowReadStream(folder, { nameOnly, fileOnly, stat })
-        if (readable) return _readable;
-        return this.#toArray(_readable);
+        const _readable = this.#shallowReadStream(folder, { nameOnly, fileOnly, stat })
+        if (readable) return _readable as any;
+        return this.#toArray(_readable) as any;
     }
 
     #getNodeName(node, folder) {
@@ -49,7 +48,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async #iteratorPeek(folder: string, prev: string, fileOnly = false) {
-        let nodes = [null, null, false] as unknown as [Node, Node, /*skip:*/boolean];
+        let nodes = [null, null, false] as unknown as [TT.Node, TT.Node, /*skip:*/boolean];
         /** Yes two nodes in case a file and a folder have the same name*/
         const ite = this.files.createRangeIterator({
             gt: folder + prev,
@@ -83,7 +82,7 @@ class Hyperdrive extends hyperdrive {
         }
         const mapped = ({
             name,
-            pathname
+            path: pathname
         })
         if (!stat) return mapped;
         mapped['stat'] = await self.stat(pathname);
@@ -95,28 +94,32 @@ class Hyperdrive extends hyperdrive {
         let prev = '/';
         return new Readable({
             async read(cb) {
-                const [node, node2, skip] = await self.#iteratorPeek(folder, prev, fileOnly).catch(cb);
+                try {
+                    const [node, node2, skip] = await self.#iteratorPeek(folder, prev, fileOnly)
 
-                if (skip) {
-                    return cb(null);
-                }
+                    if (skip) {
+                        return cb(null);
+                    }
 
-                if (!node) {
-                    this.push(null);
-                    return cb(null);
-                }
+                    if (!node) {
+                        this.push(null);
+                        return cb(null);
+                    }
 
-                const { name, dir, pathname } = self.#getNodeName(node, folder);
+                    const { name, dir, pathname } = self.#getNodeName(node, folder);
 
-                prev = '/' + name + '0';
-                if (node2) {
-                    this.push(!nameOnly ? await self.#mapper(node, { stat }) : name);
-                    this.push(!nameOnly ? await self.#mapper({ key: join(pathname, '/') }, { stat }) : name + '/');
-                }
-                else {
+                    prev = '/' + name + '0';
+                    if (node2) {
+                        this.push(!nameOnly ? await self.#mapper(node, { stat }) : name);
+                        this.push(!nameOnly ? await self.#mapper({ key: join(pathname, '/') }, { stat }) : name + '/');
+                        return cb(null);
+                    }
+
                     this.push(!nameOnly ? await self.#mapper({ key: pathname }, { stat }) : dir || name);
+                    cb(null);
+                } catch (error) {
+                    cb(error)
                 }
-                cb(null);
             }
         })
     }
@@ -134,31 +137,31 @@ class Hyperdrive extends hyperdrive {
                 gt: folder + '/', lt: folder + '0'
             }),
             new Transform({
-                transform(node: Node, callback) {
+                transform(node: TT.Node, callback) {
                     if (!fileOnly) dirs = [...new Set([...dirs, ...self.getDirs(node.key)])]
                     self.#mapper(node, { stat }).then((node) => {
-                        this.push(node)
+                        this.push(node as any)
                     }).finally(callback);
                 },
                 flush(callback) {
                     dirs.forEach((dir) => {
                         self.#mapper({ key: dir }, { stat }).then((node) => {
-                            this.push(node)
+                            this.push(node as any)
                         }).finally(callback);
                     })
                 }
             }))
     }
 
-    override async list(path: string, { recursive = true, stat = false, fileOnly = false, readable = false } = {}) {
-        let _readable: Readable;
+    override list<S extends boolean, B extends boolean>(path: string, { recursive = true, stat = false, fileOnly = false, readable = false } = {} as TT.ListOpts<S, B>): TT.List<S, B> {
+        let _readable
         if (recursive) {
-            _readable = this.#list(path, { stat, fileOnly })
+            _readable = this.#list(path, { stat, fileOnly }) as any
         } else {
-            _readable = this.readdir(path, { stat, fileOnly, readable: true })
+            _readable = this.readdir(path, { stat, fileOnly, readable: true }) as any
         }
-        if (readable) return _readable;
-        return await this.#toArray(_readable);
+        if (readable !== false) return _readable;
+        return this.#toArray(_readable) as any;
     }
 
     async #toArray<F extends (item: any) => Promise<any>>(read: Readable, mapper?: F) {
@@ -167,7 +170,7 @@ class Hyperdrive extends hyperdrive {
         return items
     }
 
-    async stat(path: string) {
+    async stat(path: string): Promise<TT.Stat> {
         const entry = await this.entry(path)
         const stat = (await this.stats.get(path))?.value;
         if (!entry) {

@@ -15,29 +15,16 @@ declare class Hyperdrive extends hyperdrive {
     get readable(): boolean;
     get writable(): boolean;
     readdir<S extends boolean, B extends boolean>(folder?: string, { stat, nameOnly, fileOnly, readable }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
-    exists(path: fs.PathLike): Promise<boolean>;
     list<S extends boolean, B extends boolean>(path: string, { recursive, stat, fileOnly, readable }?: Partial<{
         recursive: boolean;
         stat: S;
         fileOnly: boolean;
         readable: B;
     }>): TT.List<S, B>;
-    stat(path: string): Promise<TT.Stat>;
-    del(path: string, resolveStats?: boolean): Promise<any>;
-    $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
-        offset?: number;
-        limit?: number;
-        page?: number;
-        filter?: boolean;
-        show_hidden?: boolean;
-        ordering?: number;
-        search?: string;
-        sorting?: string;
-    }): Promise<void>;
-    getDirs(path: string, exclude?: string): string[];
     write(path: string, content: any, encoding: any): Promise<void>;
     put(path: string, blob: Buffer, opts?: any): Promise<void>;
     read(path: string, encoding: any): Promise<any>;
+    del(path: string, resolveStats?: boolean): Promise<any>;
     copy(source: string, dest: string): Promise<void>;
     move(source: string, dest: string): Promise<void>;
     createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
@@ -54,7 +41,20 @@ declare class Hyperdrive extends hyperdrive {
         path: string;
         readable: Readable;
     }>>;
+    exists(path: fs.PathLike): Promise<boolean>;
+    stat(path: string): Promise<TT.Stat>;
+    getDirs(path: string, exclude?: string): string[];
     export(drive_src?: string, fs_dest?: string): Promise<void>;
     import(fs_src?: string, drive_dest?: string): Promise<void>;
+    $list(dir?: string, recursive?: boolean, { offset, limit, page, filter, show_hidden, ordering, search, sorting }?: {
+        offset?: number;
+        limit?: number;
+        page?: number;
+        filter?: boolean;
+        show_hidden?: boolean;
+        ordering?: number;
+        search?: string;
+        sorting?: string;
+    }): Promise<void>;
 }
 export default Hyperdrive;

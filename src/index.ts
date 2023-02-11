@@ -162,9 +162,10 @@ class Hyperdrive extends hyperdrive {
 
 
     async export(drive_src = './', fs_dest = './') {
-
+        throw Error('Yikes! export is not Implemented yet')
     }
     async import(fs_src = './', drive_dest = './') {
+        throw Error('Yikes! import is not Implemented yet')
 
     }
 
@@ -183,6 +184,7 @@ class Hyperdrive extends hyperdrive {
             sorting = 'name'
         } = {}
     ) {
+        throw Error('Yikes! $list is not Implemented yet')
         // returns both files and dirs
     }
 

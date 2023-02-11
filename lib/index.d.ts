@@ -2,13 +2,14 @@
 /// <reference types="node" />
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
+import { Readable, Writable } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings';
 declare class Hyperdrive extends hyperdrive {
     #private;
     stats: HyperBee;
     constructor(store: any, dkey?: any);
-    get peers(): any[];
+    get peers(): any;
     get metadata(): any;
     get closed(): boolean;
     get readable(): boolean;
@@ -33,11 +34,26 @@ declare class Hyperdrive extends hyperdrive {
         search?: string;
         sorting?: string;
     }): Promise<void>;
-    getDirs(path: string): string[];
+    getDirs(path: string, exclude?: string): string[];
     write(path: string, content: any, encoding: any): Promise<void>;
     put(path: string, blob: Buffer, opts?: any): Promise<void>;
     read(path: string, encoding: any): Promise<any>;
     copy(source: string, dest: string): Promise<void>;
+    move(source: string, dest: string): Promise<void>;
+    createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
+    createFolderWriteStream(path: string): Writable<{
+        path: string;
+        readable: Readable;
+    }, {
+        path: string;
+        readable: Readable;
+    }, {
+        path: string;
+        readable: Readable;
+    }, false, true, import("streamx").WritableEvents<{
+        path: string;
+        readable: Readable;
+    }>>;
     export(drive_src?: string, fs_dest?: string): Promise<void>;
     import(fs_src?: string, drive_dest?: string): Promise<void>;
 }

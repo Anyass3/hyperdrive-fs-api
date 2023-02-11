@@ -2,9 +2,8 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
-import * as Stream from 'stream'
 // @ts-ignore
-import { Readable, Transform, pipeline } from 'streamx';
+import { Readable, Transform, pipeline, Writable } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings'
 
@@ -16,11 +15,11 @@ class Hyperdrive extends hyperdrive {
         super(store, dkey);
         this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
     }
-    get peers(): any[] {
+    get peers() {
         return this.core.peers
     }
-    get metadata(): any {
-        return //this.core.metadata
+    get metadata() {
+        return (this.core as any).metadata
     }
     get closed() {
         return this.core.closed
@@ -138,7 +137,7 @@ class Hyperdrive extends hyperdrive {
             }),
             new Transform({
                 transform(node: TT.Node, callback) {
-                    if (!fileOnly) dirs = [...new Set([...dirs, ...self.getDirs(node.key)])]
+                    if (!fileOnly) dirs = [...new Set([...dirs, ...self.getDirs(node.key, folder)])]
                     self.#mapper(node, { stat }).then((node) => {
                         this.push(node as any)
                     }).finally(callback);
@@ -164,10 +163,14 @@ class Hyperdrive extends hyperdrive {
         return this.#toArray(_readable) as any;
     }
 
-    async #toArray<F extends (item: any) => Promise<any>>(read: Readable, mapper?: F) {
+    async #toArray<F extends (item: any) => Promise<any>>(read: Readable<TT.Node>, mapper?: F) {
         const items = []
         for await (const item of read) items.push(mapper ? await mapper(item) : item);
         return items
+    }
+
+    async *#toGenerator(read: Readable<TT.Node>) {
+        for await (const item of read) yield item
     }
 
     async stat(path: string): Promise<TT.Stat> {
@@ -296,14 +299,16 @@ class Hyperdrive extends hyperdrive {
         await this.stats.put(path, stat);
         if (recursive) await this.#resolveDirStats(path);
     }
-    getDirs(path: string) {
+    getDirs(path: string, exclude: string = '') {
         path = path.replace(/\/$/, '');
         const paths = path.split('/');
         const dirs: string[] = [];
         for (let i = 0; i <= paths.length; i++) {
             if (!paths[i + 2]) break;
             const lastDir: string = (dirs.at(-1) || paths[i])
-            dirs.push(join('/', lastDir, paths[i + 1], '/'))
+            const dir = join('/', lastDir, paths[i + 1], '/')
+            if (join('/', exclude, '/') == dir) continue;
+            dirs.push(dir);
         }
         return dirs;
     }
@@ -314,7 +319,6 @@ class Hyperdrive extends hyperdrive {
 
     override async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
-        await this.#resolveDirStats(path);
         await super.put(path, blob, opts);
         await this.#setStat(path)
     }
@@ -323,9 +327,52 @@ class Hyperdrive extends hyperdrive {
         const content = await this.get(path);
         return content.toString(encoding);
     }
-    async copy(source: string, dest: string) {
 
+    async copy(source: string, dest: string) {
+        const node = await this.entry(source)
+        if (!node?.value.blob) throw Error('Source file does not exist')
+        // this.createReadStream(source).pipe(this.createWriteStream(dest));
+        return this.files.put(join('/', dest), { ...node });
     }
+
+    async move(source: string, dest: string) {
+        const node = await this.entry(source)
+        if (!node?.value.blob) throw Error('Source file does not exist');
+        await this.files.put(join('/', dest), { ...node });
+        await this.del(source);
+    }
+
+    createFolderReadStream(path: string) {
+        const self = this;
+        const files = this.#toGenerator(super.list(path, { recursive: true }))
+        return new Readable({
+            async read(cb) {
+                const { done, value } = await files.next();
+                if (done) {
+                    this.push(null);
+                    return cb(null);
+                }
+                if (!value)
+                    return cb(null);
+                this.push({ path: value.key.slice(path.length), readable: self.createReadStream(value.key) });
+                return cb(null);
+            }
+        })
+    }
+    createFolderWriteStream(path: string) {
+        const self = this;
+        return new Writable<{ path: string, readable: Readable }>({
+            write(data, cb) {
+                if (!data?.path && !data?.readable) {
+                    return cb(null);
+                }
+                const ws = self.createWriteStream(join(path, data.path));
+                data.readable.pipe(ws);
+                ws.on('close', cb);
+            },
+        })
+    }
+
     async export(drive_src = './', fs_dest = './') {
 
     }

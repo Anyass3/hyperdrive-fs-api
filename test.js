@@ -13,30 +13,6 @@ const getDrive = () => {
     return new Hyperdrive(corestore);
 }
 
-async function main() {
-
-    const corestore = new Corestore((() => {
-        return new RAM();
-    }))
-
-    const drive = new Hyperdrive(corestore);
-    await drive.put('/a/b.txt', Buffer.from('bvbv'))
-    await drive.put('/a/c', Buffer.from(''))
-    await drive.put('/a/d/p', Buffer.from(''))
-    await drive.put('/a/e/d', Buffer.from(''))
-    await drive.put('/a/b/r', Buffer.from(''))
-    await drive.put('/a/c/p/', Buffer.from(''))
-    await drive.put('/a/b/d/', Buffer.from(''))
-
-    await drive.move('/a/b.txt', '/moved.txt')
-    console.log('list', await drive.list('/', { recursive: true }))
-    // console.log('dir', await drive.list('/a/b'));
-    // console.log('dir', await drive.list('/a', { stat: true }));
-    // console.log(await drive.entry('/a/b'));
-    // console.log(await drive.get('/a/b/'));
-}
-// main()
-
 console.log('testing...');
 
 test('create files/dirs', async t => {
@@ -61,7 +37,7 @@ test('files/dirs stats', async t => {
     await drive.write('/dir1/file.txt', 'hi', 'utf-8');
 
     const list1 = await drive.list('/', { recursive: true });
-    const list2 = await drive.readdir('/dir1', { stat: true });
+    const list2 = await drive.readdir('/dir1', { withStats: true });
 
     t.absent(list1[0].stat)
     t.ok(list2[0].stat)

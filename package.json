@@ -7,7 +7,7 @@
     "build": "tsc",
     "test": "node test.ts",
     "dev": "nodemon -e ts -w src --exec pnpm build",
-    "test:w": "nodemon test"
+    "test:w": "nodemon -w lib,test.js test"
   },
   "devDependencies": {
     "@types/hyperbee": "./@types/hyperbee",

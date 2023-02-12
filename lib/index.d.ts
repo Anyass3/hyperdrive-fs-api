@@ -14,12 +14,13 @@ declare class Hyperdrive extends hyperdrive {
     get closed(): boolean;
     get readable(): boolean;
     get writable(): boolean;
-    readdir<S extends boolean, B extends boolean>(folder?: string, { stat, nameOnly, fileOnly, readable }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
-    list<S extends boolean, B extends boolean>(path: string, { recursive, stat, fileOnly, readable }?: Partial<{
+    readdir<S extends boolean, B extends boolean>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
+    list<S extends boolean, B extends boolean>(path: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
         recursive: boolean;
-        stat: S;
+        withStats: S;
         fileOnly: boolean;
         readable: B;
+        search: string | RegExp;
     }>): TT.List<S, B>;
     write(path: string, content: any, encoding: any): Promise<void>;
     put(path: string, blob: Buffer, opts?: any): Promise<void>;

@@ -16,8 +16,8 @@ declare class Hyperdrive extends hyperdrive {
     get closed(): boolean;
     get readable(): boolean;
     get writable(): boolean;
-    readdir<S extends boolean, B extends boolean>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
-    list<S extends boolean, B extends boolean>(path: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
+    readdir<S extends boolean = false, B extends boolean = false>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
+    list<S extends boolean = false, B extends boolean = false>(path: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
         recursive: boolean;
         withStats: S;
         fileOnly: boolean;
@@ -29,6 +29,7 @@ declare class Hyperdrive extends hyperdrive {
     put(path: string, blob: Buffer, opts?: any): Promise<void>;
     read(path: string, encoding: any): Promise<any>;
     del(path: string, resolveStats?: boolean): Promise<any>;
+    rmDir(path: any, recursive?: boolean): Promise<void>;
     copy(source: string, dest: string): Promise<void>;
     move(source: string, dest: string): Promise<void>;
     createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;

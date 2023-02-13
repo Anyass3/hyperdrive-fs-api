@@ -37,21 +37,21 @@ export interface StatFile extends BaseStat {
     size: number;
 }
 export type Stat = StatDir & StatFile;
-export interface Item<S = boolean> {
+export interface Item<S> {
     name: string;
     path: string;
     stat: S extends true ? Stat : null;
 }
-export type ListOpts<S = boolean, B = boolean> = Partial<{
+export type ListOpts<S extends boolean = boolean, B extends boolean = boolean> = Partial<{
     recursive: boolean;
     withStats: S;
     fileOnly: boolean;
     readable: B;
     search: string | RegExp;
 }>;
-export type List<S = boolean, B = boolean> = B extends true ? Readable<Item<S>> : Promise<Item<S>[]>;
-export type ReadDir<S = boolean, B = boolean> = List<S, B>;
-export type ReadDirOpts<S = boolean, B = boolean> = Omit<ListOpts<S, B>, 'recursive'> & {
+export type List<S extends boolean = boolean, B extends boolean = boolean> = B extends true ? Readable<Item<S>> : Promise<Item<S>[]>;
+export type ReadDir<S extends boolean = boolean, B extends boolean = boolean> = List<S, B>;
+export type ReadDirOpts<S extends boolean = boolean, B extends boolean = boolean> = Omit<ListOpts<S, B>, 'recursive'> & {
     nameOnly?: boolean;
 };
 export {};

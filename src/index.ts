@@ -34,14 +34,14 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
 
-    override readdir<S extends boolean, B extends boolean>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
+    override readdir<S extends boolean = false, B extends boolean = false>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
         if (folder.endsWith('/')) folder = folder.slice(0, -1)
         const _readable = this.#shallowReadStream(folder, { nameOnly, fileOnly, withStats, search })
         if (readable) return _readable as any;
         return this.#toArray(_readable) as any;
     }
 
-    override list<S extends boolean, B extends boolean>(path: string, { recursive = true, withStats = false, fileOnly = false, readable = false, search = '' } = {} as TT.ListOpts<S, B>): TT.List<S, B> {
+    override list<S extends boolean = false, B extends boolean = false>(path: string, { recursive = true, withStats = false, fileOnly = false, readable = false, search = '' } = {} as TT.ListOpts<S, B>): TT.List<S, B> {
         let _readable
         if (recursive) {
             _readable = this.#list(path, { withStats, fileOnly, search })
@@ -56,7 +56,7 @@ class Hyperdrive extends hyperdrive {
         if (isDir) {
             if ((await this.entry(path))) throw Error('File already exists: ' + path);
         }
-        else if ((await this.#toArray(super.readdir(path))).length) {
+        else if ((await this.#countReadable(super.readdir(path)))) {
             throw Error('Directory already exists: ' + path);
         }
         await this.getDirs(path, { resolve: true });
@@ -84,6 +84,21 @@ class Hyperdrive extends hyperdrive {
         await this.stats.del(path);
         if (resolveStats) await this.#resolveDirStats(path as string);
         return file;
+    }
+
+    async rmDir(path, recursive = false) {
+        path = path.replace(/\/$/, '');
+        if (!recursive) {
+            if ((await this.#countReadable(super.readdir(path)))) {
+                throw Error(`Directory is not empty. 
+                Set optional recursive option to true;
+                to delete it with it's contents`);
+            }
+        }
+        for await (const item of this.list(path, { recursive, readable: true })) {
+            await this.del(item.stat);
+        }
+        await this.stats.del(path);
     }
 
     async copy(source: string, dest: string) {
@@ -149,7 +164,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async exists(path: fs.PathLike) {
-        return !!(await this.entry(path) || (await this.#toArray(super.readdir(path))).length)
+        return !!(await this.entry(path) || (await this.#countReadable(super.readdir(path))));
     }
 
     async stat(path: string): Promise<TT.Stat> {
@@ -199,6 +214,11 @@ class Hyperdrive extends hyperdrive {
         await pipelinePromise(this.local.createFolderReadStream(localPath), this.createFolderWriteStream(path))
     }
 
+    async #countReadable(read: Readable<TT.Node>) {
+        let count = 0;
+        for await (const _ of read) count++;
+        return count;
+    }
 
     #getNodeName(node: TT.Node, folder: string) {
         const suffix = node.key.slice(folder.length + 1)

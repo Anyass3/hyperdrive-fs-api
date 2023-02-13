@@ -28,7 +28,7 @@ key should be a Hypercore public key in either hex string or buffer.
 localDriveRoot is needed in case you want export and import between your local fs system and hyperdrive. 
 This defaults to current directory (ie `./`).
 
-## overrides 
+## Overrides 
 
 ### readdir
 
@@ -93,8 +93,8 @@ files(and folders if `fileOnly=false`) from all sub-folders
 
 ### put
 It has the same api with that of hyperdrive-next but checks if a file/folder exist at a path 
-Because we should not have a file and a folder at the same location. Also it resolves stats
+Because we should not have a file and a folder at the same location. Also resolves stats.
 ### del
-It has the same api with that of hyperdrive-next and it resolves stats
+It has the same api with that of hyperdrive-next; but also resolves stats
 
 ## Additions

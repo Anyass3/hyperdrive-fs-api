@@ -98,3 +98,49 @@ Because we should not have a file and a folder at the same location. Also resolv
 It has the same api with that of hyperdrive-next; but also resolves stats
 
 ## Additions
+### write
+```ts
+write(path: string, content: string, encoding: any): Promise<Node>
+```
+`encoding` defines the encoding the `content` string is in.
+
+### rmDir
+```ts
+rmDir(path: string, [opts]): Promise<void>
+```
+opts
+```ts
+{
+recursive: boolean // defaults false
+}
+```
+> If `recursive` is false and directory is not empty it throws an error
+
+### copy
+```ts
+copy(source: string, dest: string): Promise<Node>
+```
+It doesn't necessarily recreate a new blob 
+but shares the `source` blob reference with the `dest`
+
+### move
+```ts
+move(source: string, dest: string): Promise<Node>
+```
+It doesn't not recreate a new blob for dest and delete source blob.
+It just sets the source blob reference for to dest and unreference source to it's blob.
+
+### createFolderReadStream
+```ts
+drive.createFolderReadStream(path: string): Readable<{path: string, readable: Readable}>
+```
+
+### createFolderWriteStream
+```ts
+drive.createFolderWriteStream(path: string): Writable<{path: string, readable: Readable}>
+```
+
+### import
+```ts 
+import
+```

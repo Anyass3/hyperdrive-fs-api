@@ -64,7 +64,7 @@ drive.readdir(path, { withStats: true, });
 
 ```typescript
 drive.readdir(path);
-// Promise<Array<{ name: string; path: string; stat: null}>>
+// Promise<Array<{ name: string; path: string; stat: undefined}>>
 ```
 With `fileOnly` option it returns only files
 
@@ -101,24 +101,31 @@ It has the same api with that of hyperdrive-next; but also resolves stats
 
 ### exists
 ```ts
- exists(path: string): Promise<boolean>;
+ drive.exists(path: string): Promise<boolean>;
  ```
  checks if a directory or file exists at a given `path`.
 
 ### stat
 ```ts
-stat(path: string): Promise<Stat>
+drive.stat(path: string): Promise<Stat>
 ```
+checkout [Stat](/#Stat) type below
 
 ### write
 ```ts
-write(path: string, content: string, encoding: any): Promise<Node>
+drive.write(path: string, content: string, encoding: any): Promise<Node>
 ```
 `encoding` defines the encoding the `content` string is in.
 
+### read
+```ts
+drive.read(path: string, encoding: any): Promise<string>;
+```
+`encoding` defines the return buffer's string encoding
+
 ### rmDir
 ```ts
-rmDir(path: string, [opts]): Promise<void>
+drive.rmDir(path: string, [opts]): Promise<void>
 ```
 opts
 ```ts
@@ -130,14 +137,14 @@ recursive: boolean // defaults false
 
 ### copy
 ```ts
-copy(source: string, dest: string): Promise<Node>
+drive.copy(source: string, dest: string): Promise<Node>
 ```
 It doesn't necessarily recreate a new blob 
 but shares the `source` blob reference with the `dest`
 
 ### move
 ```ts
-move(source: string, dest: string): Promise<Node>
+drive.move(source: string, dest: string): Promise<Node>
 ```
 It doesn't not recreate a new blob for `dest` and delete `source` blob.
 It just _sets_ the `source` blob reference for to `dest` and _unreference_ `source` to it's blob.
@@ -163,3 +170,52 @@ It imports local file system directory into a hyperdrive directory.
 drive.export(path = '/', localPath = './'): Promise<void>
 ```
 It exports hyperdrive directory to a local file system directory.
+
+## Some Typings
+### Stat
+```ts
+interface BaseStat {
+    atime: string;
+    mtime: string;
+    ctime: string;
+    birthtime: string;
+    atimeMs: number;
+    mtimeMs: number;
+    ctimeMs: number;
+    birthtimeMs: number;
+    isDirectory: () => boolean;
+    isFile: () => boolean;
+}
+interface StatDir extends BaseStat {
+    itemsCount: number;
+}
+interface StatFile extends BaseStat {
+    byteOffset: number;
+    blockOffset: number;
+    blockLength: number;
+    byteLength: number;
+    key: string;
+    seq: number;
+    executable: false;
+    linkname: string;
+    size: number;
+}
+type Stat = StatDir & StatFile;
+```
+### Node
+```ts
+{
+    seq: number | null;
+    key: string;
+    value: HyperBlob | null;
+}
+```
+### HyperBlob
+```ts
+{
+    byteOffset: number;
+    blockOffset: number;
+    blockLength: number;
+    byteLength: number;
+}
+```

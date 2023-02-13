@@ -60,7 +60,7 @@ drive.readdir(path, { nameOnly: true, readable: true  });
 drive.readdir(path, { withStats: true, });
 // Promise<Array<{ name: string; path: string; stat: Stat }>>
 ```
-[checkout the Stat type](./#stat)
+[checkout the Stat type](https://github.com/Anyass3/hyperdrive-x#stat)
 
 ```typescript
 drive.readdir(path);

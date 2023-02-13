@@ -16,11 +16,11 @@ pnpm i github:Anyass3/hyperdrive-x
 
 ## API
 
-Checkout (hyperdrive api docs)[https://docs.holepunch.to/building-blocks/hyperdrive]
+Checkout [hyperdrive api docs](https://docs.holepunch.to/building-blocks/hyperdrive)
 
 Only the changed and extended apis will be documented here.
 
-```
+```typescript
 const drive = new Hyperdrive(corestore, key?: string | Buffer, localDriveRoot?: string)
 ```
 key should be a Hypercore public key in either hex string or buffer. 
@@ -31,11 +31,37 @@ localDriveRoot is needed in case you want export and import between your local f
 
 #### readdir
 
-```js
+```typescript
 drive.readdir(path: string, [opts])
 ```
 opts
+```typescript
+{ 
+ withStats: boolean; // defaults false
+ nameOnly: boolean; // defaults false
+ fileOnly: boolean; // defaults false
+ readable: boolean; // defaults false
+ search: string|RegExp // defaults ""
+}
 ```
-{ withStats: boolean, nameOnly: boolean, fileOnly: boolean, readable: boolean, search: string|RegExp  }
+> The return type/shape depends on the opts, but the typings will guide if you are using an editor that supports it.
+
+```typescript
+drive.readdir(path, { nameOnly: true });
+// Promise<Array<string>>
 ```
-> The return type depends on the opts, but the typings will guide if you are using an editor that supports it.
+```typescript
+drive.readdir(path, { nameOnly: true, readable: true  });
+// Readable<string>
+```
+```typescript
+drive.readdir(path, { withStats: true, });
+// Promise<Array<{ name: string; path: string; stat: [Stat](#stat) }>>
+```
+```typescript
+drive.readdir(path);
+// Promise<Array<{ name: string; path: string; stat: null}>>
+```
+With `fileOnly` option it returns only files
+
+The `search` option searches for a file/folder name.

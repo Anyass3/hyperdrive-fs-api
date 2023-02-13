@@ -25,6 +25,7 @@ test('create files/dirs', async t => {
 
     t.is(list1.length, 4)
     t.is(list2.length, 2)
+    t.exception(() => drive.put('/dir1/dir2', Buffer.from('')))
 
     t.ok(await drive.exists('/dir1/dir2/file.txt'))
     t.comment('comparing buffer to buffer')

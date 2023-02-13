@@ -98,6 +98,18 @@ Because we should not have a file and a folder at the same location. Also resolv
 It has the same api with that of hyperdrive-next; but also resolves stats
 
 ## Additions
+
+### exists
+```ts
+ exists(path: string): Promise<boolean>;
+ ```
+ checks if a directory or file exists at a given `path`.
+
+### stat
+```ts
+stat(path: string): Promise<Stat>
+```
+
 ### write
 ```ts
 write(path: string, content: string, encoding: any): Promise<Node>
@@ -142,5 +154,12 @@ drive.createFolderWriteStream(path: string): Writable<{path: string, readable: R
 
 ### import
 ```ts 
-import
+drive.import(localPath = './', path = '/'): Promise<void>
 ```
+It imports local file system directory into a hyperdrive directory.
+
+### export
+```ts 
+drive.export(path = '/', localPath = './'): Promise<void>
+```
+It exports hyperdrive directory to a local file system directory.

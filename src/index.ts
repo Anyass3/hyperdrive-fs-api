@@ -3,17 +3,20 @@ import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
 // @ts-ignore
-import { Readable, Transform, pipeline, Writable } from 'streamx';
+import { Readable, Transform, pipeline, Writable, pipelinePromise } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings'
+import { LocalDrive } from './localdrive.js';
 
 class Hyperdrive extends hyperdrive {
     stats: HyperBee;
+    local: LocalDrive;
 
-    constructor(store, dkey = undefined) {
+    constructor(store, dkey?: string | Buffer, localDriveRoot?: string) {
         if (dkey && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
         super(store, dkey);
         this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
+        this.local = new LocalDrive(localDriveRoot)
     }
     get peers() {
         return this.core.peers
@@ -30,7 +33,6 @@ class Hyperdrive extends hyperdrive {
     get writable(): boolean {
         return this.core.writable
     }
-
 
     override readdir<S extends boolean, B extends boolean>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
         if (folder.endsWith('/')) folder = folder.slice(0, -1)
@@ -50,6 +52,15 @@ class Hyperdrive extends hyperdrive {
         return this.#toArray(_readable) as any;
     }
 
+    async throwErrorOnExists(path: string, isDir = false) {
+        if (isDir) {
+            if ((await this.entry(path))) throw Error('File already exists: ' + path);
+        }
+        else if ((await this.#toArray(super.readdir(path))).length) {
+            throw Error('Directory already exists: ' + path);
+        }
+        await this.getDirs(path, { resolve: true });
+    }
 
     async write(path: string, content, encoding) {
         await this.put(path, Buffer.from(content, encoding));
@@ -57,13 +68,14 @@ class Hyperdrive extends hyperdrive {
 
     override async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
+        await this.throwErrorOnExists(path);
         await super.put(path, blob, opts);
         await this.#setStat(path);
     }
 
     async read(path: string, encoding) {
         const content = await this.get(path);
-        return content.toString(encoding);
+        return content?.toString(encoding);
     }
 
     override async del(path: string, resolveStats = true) {
@@ -77,6 +89,7 @@ class Hyperdrive extends hyperdrive {
     async copy(source: string, dest: string) {
         const node = await this.entry(source)
         if (!node?.value.blob) throw Error('Source file does not exist')
+        await this.throwErrorOnExists(dest);
         // this.createReadStream(source).pipe(this.createWriteStream(dest));
         return this.files.put(join('/', dest), { ...node });
     }
@@ -84,6 +97,7 @@ class Hyperdrive extends hyperdrive {
     async move(source: string, dest: string) {
         const node = await this.entry(source)
         if (!node?.value.blob) throw Error('Source file does not exist');
+        await this.throwErrorOnExists(dest);
         await this.files.put(join('/', dest), { ...node.value });
         await this.del(source);
     }
@@ -103,15 +117,32 @@ class Hyperdrive extends hyperdrive {
             }
         })
     }
+
     createFolderWriteStream(path: string) {
         const self = this;
+        let checkedWritability = false;
         return new Writable<{ path: string, readable: Readable }>({
-            write(data, cb) {
+            async write(data, cb) {
                 if (!data?.path || !data?.readable) {
                     return cb(null);
                 }
+                if (!checkedWritability)
+                    try {
+                        await self.throwErrorOnExists(path, true)
+                        checkedWritability = true;
+                    } catch (error) {
+                        return cb(error);
+                    };
+
+                try {
+                    await self.throwErrorOnExists(data.path)
+
+                } catch (error) {
+                    return cb(error);
+                }
                 const ws = self.createWriteStream(join(path, data.path));
                 data.readable.pipe(ws);
+                data.readable.on('error', cb);
                 ws.on('close', cb);
             },
         })
@@ -122,6 +153,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async stat(path: string): Promise<TT.Stat> {
+        path = path.replace(/\/$/, '');
         const entry = await this.entry(path)
         const stat = (await this.stats.get(path))?.value;
         if (!entry) {
@@ -144,74 +176,53 @@ class Hyperdrive extends hyperdrive {
         }
     }
 
-    getDirs(path: string, exclude: string = '') {
+    async getDirs(path: string, { exclude = '', resolve = false } = {}) {
         path = path.replace(/\/$/, '');
         const paths = path.split('/');
         const dirs: string[] = [];
         for (let i = 0; i <= paths.length; i++) {
             if (!paths[i + 2]) break;
             const lastDir: string = (dirs.at(-1) || paths[i])
-            const dir = join('/', lastDir, paths[i + 1], '/')
-            if (join('/', exclude, '/') == dir) continue;
+            const dir = join('/', lastDir, paths[i + 1])
+            if (join('/', exclude) == dir) continue;
+            if (resolve && await this.entry(dir)) throw Error('File already exists: ' + dir);
             dirs.push(dir);
         }
         return dirs;
     }
 
-    async export(drive_src = './', fs_dest = './') {
-        throw Error('Yikes! export is not Implemented yet')
-    }
-    async import(fs_src = './', drive_dest = './') {
-        throw Error('Yikes! import is not Implemented yet')
+    async export(path = '/', localPath = './') {
+        await pipelinePromise(this.createFolderReadStream(path), this.local.createFolderWriteStream(localPath))
     }
 
-    // get items
-    async $list(
-        dir = '/',
-        recursive = false,
-        {
-            offset = 0,
-            limit = 100,
-            page = 1,
-            filter = false,
-            show_hidden = true,
-            ordering = 1,
-            search = '',
-            sorting = 'name'
-        } = {}
-    ) {
-        throw Error('Yikes! $list is not Implemented yet')
-        // returns both files and dirs
+    async import(localPath = './', path = '/') {
+        await pipelinePromise(this.local.createFolderReadStream(localPath), this.createFolderWriteStream(path))
     }
 
-    #getNodeName(node, folder) {
+
+    #getNodeName(node: TT.Node, folder: string) {
         const suffix = node.key.slice(folder.length + 1)
         const i = suffix.indexOf('/')
         const name = i === -1 ? suffix : suffix.slice(0, i)
-        const isFile = node.key.endsWith(name) && node.value;
-        return { name, dir: !isFile ? name + '/' : null, pathname: join(folder, name, !isFile ? '/' : '') }
+        const isFile: boolean = node.key.endsWith(name) && !!node.value;
+        return { name, isFile, pathname: join(folder, name) }
     }
 
     async #iteratorPeek(folder: string, prev: string, fileOnly = false) {
-        let node: TT.Node | null = null, nextNode: TT.Node | null = null, skip = false;
-        /** Yes two nodes in case a file and a folder have the same name*/
+        let node: TT.Node | null = null;
+        let skip: boolean;
         const ite = this.files.createRangeIterator({
             gt: folder + prev,
-            lt: folder + '0', limit: 2
+            lt: folder + '0', limit: 1
         });
         try {
             await ite.open();
             node = await ite.next();
-            if (!fileOnly) {
-                const next = await ite.next();
-                if (next) {
-                    if (next.key.startsWith(node.key)) nextNode = { seq: null, key: node.key + '/', value: null };
-                }
-            } else if (node && !node.value) skip = true;
+            if (node && !node.value) skip = true;
         } finally {
             await ite.close();
         }
-        return { node, nextNode, skip };
+        return { node, skip };
     }
 
     async #mapper(item, { path = '', withStats = false } = {}) {
@@ -233,28 +244,23 @@ class Hyperdrive extends hyperdrive {
         mapped['stat'] = await self.stat(pathname);
         return mapped;
     };
+
     async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {
-        let canRead = true;
         let prev = '/';
-        while (canRead) {
-            const { node, nextNode, skip } = await this.#iteratorPeek(folder, prev, fileOnly);
+        while (true) {
+            const { node, skip } = await this.#iteratorPeek(folder, prev);
             if (skip) {
                 continue;
             }
             if (!node) {
-                canRead = true;
                 break;
             }
-            const { name, dir, pathname } = this.#getNodeName(node, folder);
+            const { name, isFile, pathname } = this.#getNodeName(node, folder);
             prev = '/' + name + '0';
-            if (search && !name.match(search)) {
+            if ((search && !name.match(search)) || (fileOnly && !isFile)) {
                 continue;
             }
-            if (nextNode) {
-                yield !nameOnly ? await this.#mapper(node, { withStats }) : name;
-                yield !nameOnly ? await this.#mapper({ key: join(pathname, '/') }, { withStats }) : name + '/';
-            }
-            yield !nameOnly ? await this.#mapper({ key: pathname }, { withStats }) : dir || name;
+            yield !nameOnly ? await this.#mapper({ key: pathname }, { withStats }) : name;
         }
 
     }
@@ -265,6 +271,7 @@ class Hyperdrive extends hyperdrive {
             async read(cb) {
                 try {
                     const { done, value } = await readableGenerator.next();
+                    console.log({ done, value })
                     if (done) {
                         this.push(null);
                         return cb(null);
@@ -286,14 +293,15 @@ class Hyperdrive extends hyperdrive {
                 gt: folder + '/', lt: folder + '0'
             }),
             new Transform({
-                transform(node: TT.Node, callback) {
+                async transform(node: TT.Node, callback) {
                     if (search && !node.key.match(search)) return callback();
-                    if (!fileOnly) dirs = [...new Set([...dirs, ...self.getDirs(node.key, folder)])]
+                    if (!fileOnly) dirs = [...new Set([...dirs, ...await self.getDirs(node.key, { exclude: folder })])]
                     self.#mapper(node, { withStats }).then((node) => {
                         if (!search || node.name.match(search)) this.push(node as any);
                     }).finally(callback);
                 },
                 flush(callback) {
+                    if (fileOnly) return callback()
                     dirs.forEach((dir) => {
                         self.#mapper({ key: dir }, { withStats }).then((node) => {
                             if (!search || node.name.match(search)) this.push(node as any)
@@ -320,7 +328,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async #setStat(path: string, { method = 'create', extras = {}, recursive = true } = {} as { method?: 'access' | 'modify' | 'create' | 'change', extras?: Record<string, any>, recursive?: boolean }) {
-        // path = path.replace(/\/$/, '');
+        path = path.replace(/\/$/, '');
         let stat = (await this.stats.get(path))?.value
         if (!stat && method != 'create') method = 'create';
         if (stat && method != 'modify') method = 'modify';
@@ -367,3 +375,4 @@ class Hyperdrive extends hyperdrive {
 }
 
 export default Hyperdrive;
+export { LocalDrive, Hyperdrive };

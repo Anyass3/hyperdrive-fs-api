@@ -127,8 +127,8 @@ but shares the `source` blob reference with the `dest`
 ```ts
 move(source: string, dest: string): Promise<Node>
 ```
-It doesn't not recreate a new blob for dest and delete source blob.
-It just sets the source blob reference for to dest and unreference source to it's blob.
+It doesn't not recreate a new blob for `dest` and delete `source` blob.
+It just _sets_ the `source` blob reference for to `dest` and _unreference_ `source` to it's blob.
 
 ### createFolderReadStream
 ```ts

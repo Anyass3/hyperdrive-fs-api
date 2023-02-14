@@ -93,7 +93,8 @@ files(and folders if `fileOnly=false`) from all sub-folders
 
 ### put
 It has the same api with that of hyperdrive-next but checks if a file/folder exist at a path 
-Because we should not have a file and a folder at the same location. Also resolves stats.
+because we do not want a file and a folder at the same path; and throws error there is conflict. Also resolves stats.
+
 ### del
 It has the same api with that of hyperdrive-next; but also resolves stats
 

@@ -70,11 +70,15 @@ class Hyperdrive extends hyperdrive {
         return await this.put(path, Buffer.from(content, encoding));
     }
 
-    override async put(path: string, blob: Buffer, opts?) {
+    override async put(path: string, blob: Buffer, { awaitStats = true, ...opts } = {} as {
+        executable?: boolean;
+        awaitStats?: boolean;
+        metadata?: Record<string, any>;
+    }) {
         path = path.replace(/\/$/, '');
         await this.throwErrorOnExists(path);
         const node = await super.put(path, blob, opts);
-        await this.#setStat(path);
+        await this.#await(async () => this.#setStat(path), awaitStats);
         return node as TT.Node;
     }
 
@@ -83,8 +87,8 @@ class Hyperdrive extends hyperdrive {
         return content?.toString(encoding);
     }
 
-    override async del(path: string) {
-        return this.#del(path, true);
+    override async del(path: string, { awaitStats = true } = {}) {
+        return this.#del(path, { resolveStats: true, awaitStats });
     }
 
     async rmDir(path, { recursive = false } = {}) {
@@ -135,7 +139,7 @@ class Hyperdrive extends hyperdrive {
         })
     }
 
-    createFolderWriteStream(path: string) {
+    createFolderWriteStream(path: string, { awaitStats = true } = {}) {
         const self = this;
         let checkedWritability = false;
         return new Writable<{ path: string, readable: Readable }>({
@@ -157,10 +161,17 @@ class Hyperdrive extends hyperdrive {
                 } catch (error) {
                     return cb(error);
                 }
-                const ws = self.createWriteStream(join(path, data.path));
+
+                data.path = join(path, data.path)
+                const ws = self.createWriteStream(data.path);
+
                 data.readable.pipe(ws);
                 data.readable.on('error', cb);
-                ws.on('close', cb);
+
+                ws.on('close', async () => {
+                    await self.#await(async () => self.#setStat(data.path), awaitStats);
+                    cb()
+                });
             },
         })
     }
@@ -222,13 +233,20 @@ class Hyperdrive extends hyperdrive {
         await pipelinePromise(this.local.createFolderReadStream(localPath), this.createFolderWriteStream(path))
     }
 
-    async #del(path: string, resolveStats = true) {
+    async #del(path: string, { resolveStats = true, awaitStats = true }) {
         path = path.replace(/\/$/, '');
         const node = await super.del(path);
-        await this.stats.del(path);
-        if (resolveStats)
-            await this.#resolveDirStats(path);
+        await this.#await(async () => {
+            await this.stats.del(path);
+            if (resolveStats)
+                await this.#resolveDirStats(path);
+        }, awaitStats);
         return node as TT.Node;
+    }
+
+    async #await(fn: () => Promise<void>, wait = true) {
+        if (!wait) return fn();
+        await fn();
     }
 
     async #countReadable(read: Readable<TT.Node>) {

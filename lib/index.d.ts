@@ -26,16 +26,24 @@ declare class Hyperdrive extends hyperdrive {
     }>): TT.List<S, B>;
     throwErrorOnExists(path: string, isDir?: boolean): Promise<void>;
     write(path: string, content: any, encoding: any): Promise<TT.Node>;
-    put(path: string, blob: Buffer, opts?: any): Promise<TT.Node>;
+    put(path: string, blob: Buffer, { awaitStats, ...opts }?: {
+        executable?: boolean;
+        awaitStats?: boolean;
+        metadata?: Record<string, any>;
+    }): Promise<TT.Node>;
     read(path: string, encoding: any): Promise<any>;
-    del(path: string): Promise<TT.Node>;
+    del(path: string, { awaitStats }?: {
+        awaitStats?: boolean;
+    }): Promise<TT.Node>;
     rmDir(path: any, { recursive }?: {
         recursive?: boolean;
     }): Promise<void>;
     copy(source: string, dest: string): Promise<TT.Node>;
     move(source: string, dest: string): Promise<TT.Node>;
     createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
-    createFolderWriteStream(path: string): Writable<{
+    createFolderWriteStream(path: string, { awaitStats }?: {
+        awaitStats?: boolean;
+    }): Writable<{
         path: string;
         readable: Readable;
     }, {

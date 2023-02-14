@@ -60,7 +60,7 @@ class Hyperdrive extends hyperdrive {
         if (isDir) {
             if ((await this.entry(path))) throw Error('File already exists: ' + path);
         }
-        else if (await this.#isDirectory(path)) {
+        else if (await this.isDirectory(path)) {
             throw Error('Directory already exists: ' + path);
         }
         await this.getDirs(path, { resolve: true });
@@ -90,7 +90,7 @@ class Hyperdrive extends hyperdrive {
     async rmDir(path, { recursive = false } = {}) {
         path = path.replace(/\/$/, '');
         if (!recursive) {
-            if ((await this.#isDirectory(path))) {
+            if ((await this.isDirectory(path))) {
                 throw Error(`Directory is not empty. 
                 Set optional recursive option to true;
                 to delete it with it's contents`);
@@ -165,8 +165,14 @@ class Hyperdrive extends hyperdrive {
         })
     }
 
+    async isDirectory(path: string) {
+        const node = await this.#iteratorPeek(path.replace(/\/$/, ''), '/');
+        if (!node) return false;
+        return true;
+    }
+
     async exists(path: string) {
-        return !!(await this.entry(path) || (await this.#isDirectory(path)));
+        return !!(await this.entry(path) || (await this.isDirectory(path)));
     }
 
     async stat(path: string): Promise<TT.Stat> {
@@ -274,24 +280,6 @@ class Hyperdrive extends hyperdrive {
         if (!withStats) return mapped as any;
         mapped['stat'] = await self.stat(key);
         return mapped as any;
-    };
-
-    async #isDirectory(folder: string) {
-        folder = folder.replace(/\/$/, '')
-        let prev = '/';
-        while (true) {
-            const node = await this.#iteratorPeek(folder, prev);
-
-            if (!node) {
-                return false;
-            }
-
-            const { name, isFile } = this.#getNodeName(node, folder);
-
-            if (isFile) return true;
-
-            prev = '/' + name + '0';
-        }
     }
 
     async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {

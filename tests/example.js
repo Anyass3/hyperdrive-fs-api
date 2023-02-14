@@ -20,7 +20,7 @@ async function main() {
 
     await drive.move('/a/hello.txt', 'a/moved.tx')
     await drive.copy('/a/b/hmm', 'a/copied.tx')
-
+    console.log(await drive.isDirectory('/a/b/hmm'))
     console.time('import')
     await drive.import('lib', 'a/lib');
     await drive.import('src', 'a/lib');

@@ -48,6 +48,7 @@ declare class Hyperdrive extends hyperdrive {
         path: string;
         readable: Readable;
     }>>;
+    isDirectory(path: string): Promise<boolean>;
     exists(path: string): Promise<boolean>;
     stat(path: string): Promise<TT.Stat>;
     getDirs(path: string, { exclude, resolve }?: {

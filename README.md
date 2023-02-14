@@ -102,6 +102,12 @@ It has the same api with that of hyperdrive-next; but also resolves stats
 
 ## Additions
 
+### isDirectory
+```ts
+ drive.isDirectory(path: string): Promise<boolean>;
+ ```
+ checks whether a given `path` is a directory or not.
+
 ### exists
 ```ts
  drive.exists(path: string): Promise<boolean>;

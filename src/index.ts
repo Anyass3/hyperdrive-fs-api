@@ -3,7 +3,7 @@ import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
 // @ts-ignore
-import { Readable, Transform, pipeline, Writable, pipelinePromise } from 'streamx';
+import { Readable, Writable, pipelinePromise } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings'
 import { LocalDrive } from './localdrive.js';
@@ -11,10 +11,16 @@ import { LocalDrive } from './localdrive.js';
 class Hyperdrive extends hyperdrive {
     stats: HyperBee;
     local: LocalDrive;
+    private _list: any;
+    private _readdir: any;
 
     constructor(store, dkey?: string | Buffer, localDriveRoot?: string) {
         if (dkey && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
         super(store, dkey);
+
+        this._readdir = super.readdir
+        this._list = super.list
+
         this.stats = this.db.sub('stats', { keyEncoding: 'utf-8', valueEncoding: 'json' });
         this.local = new LocalDrive(localDriveRoot)
     }
@@ -35,21 +41,19 @@ class Hyperdrive extends hyperdrive {
     }
 
     override readdir<S extends boolean = false, B extends boolean = false>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
-        if (folder.endsWith('/')) folder = folder.slice(0, -1)
-        const _readable = this.#shallowReadStream(folder, { nameOnly, fileOnly, withStats, search })
-        if (readable) return _readable as any;
-        return this.#toArray(_readable) as any;
+        if (readable) return this.#shallowReadStream(folder, { nameOnly, fileOnly, withStats, search }) as any;
+        return this.#toArray(this.#shallowReadGenerator(folder, { nameOnly, fileOnly, withStats, search })) as any;
     }
 
-    override list<S extends boolean = false, B extends boolean = false>(path: string, { recursive = true, withStats = false, fileOnly = false, readable = false, search = '' } = {} as TT.ListOpts<S, B>): TT.List<S, B> {
-        let _readable
-        if (recursive) {
-            _readable = this.#list(path, { withStats, fileOnly, search })
-        } else {
-            _readable = this.readdir(path, { withStats, fileOnly, readable: true, search })
+    override list<S extends boolean = false, B extends boolean = false>(folder: string, { recursive = true, withStats = false, fileOnly = false, readable = false, search = '' } = {} as TT.ListOpts<S, B>): TT.List<S, B> {
+        if (!readable) {
+            if (recursive) return this.#toArray<TT.Item<S>>(this.#listGenerator(folder, { withStats, fileOnly, search })) as any;
+            return this.#toArray<TT.Item<S>>(this.#shallowReadGenerator(folder, { withStats, fileOnly, search })) as any;
         }
-        if (readable !== false) return _readable;
-        return this.#toArray(_readable) as any;
+        if (recursive) return this.#list(folder, { withStats, fileOnly, search }) as any;
+
+        return this.readdir(folder, { withStats, fileOnly, readable: true, search }) as any;
+
     }
 
     async throwErrorOnExists(path: string, isDir = false) {
@@ -63,14 +67,15 @@ class Hyperdrive extends hyperdrive {
     }
 
     async write(path: string, content, encoding) {
-        await this.put(path, Buffer.from(content, encoding));
+        return await this.put(path, Buffer.from(content, encoding));
     }
 
     override async put(path: string, blob: Buffer, opts?) {
         path = path.replace(/\/$/, '');
         await this.throwErrorOnExists(path);
-        await super.put(path, blob, opts);
+        const node = await super.put(path, blob, opts);
         await this.#setStat(path);
+        return node as TT.Node;
     }
 
     async read(path: string, encoding) {
@@ -78,15 +83,11 @@ class Hyperdrive extends hyperdrive {
         return content?.toString(encoding);
     }
 
-    override async del(path: string, resolveStats = true) {
-        path = path.replace(/\/$/, '');
-        const file = await super.del(path);
-        await this.stats.del(path);
-        if (resolveStats) await this.#resolveDirStats(path as string);
-        return file;
+    override async del(path: string) {
+        return this.#del(path, true);
     }
 
-    async rmDir(path, recursive = false) {
+    async rmDir(path, { recursive = false } = {}) {
         path = path.replace(/\/$/, '');
         if (!recursive) {
             if ((await this.#countReadable(super.readdir(path)))) {
@@ -106,15 +107,16 @@ class Hyperdrive extends hyperdrive {
         if (!node?.value.blob) throw Error('Source file does not exist')
         await this.throwErrorOnExists(dest);
         // this.createReadStream(source).pipe(this.createWriteStream(dest));
-        return this.files.put(join('/', dest), { ...node });
+        return this.files.put(join('/', dest), { ...node }) as unknown as TT.Node;
     }
 
     async move(source: string, dest: string) {
         const node = await this.entry(source)
         if (!node?.value.blob) throw Error('Source file does not exist');
         await this.throwErrorOnExists(dest);
-        await this.files.put(join('/', dest), { ...node.value });
+        const newNode = await this.files.put(join('/', dest), { ...node.value });
         await this.del(source);
+        return newNode as unknown as TT.Node;
     }
 
     createFolderReadStream(path: string) {
@@ -214,6 +216,14 @@ class Hyperdrive extends hyperdrive {
         await pipelinePromise(this.local.createFolderReadStream(localPath), this.createFolderWriteStream(path))
     }
 
+    async #del(path: string, resolveStats = true) {
+        path = path.replace(/\/$/, '');
+        const node = await super.del(path);
+        await this.stats.del(path);
+        if (resolveStats) await this.#resolveDirStats(path as string);
+        return node as TT.Node;
+    }
+
     async #countReadable(read: Readable<TT.Node>) {
         let count = 0;
         for await (const _ of read) count++;
@@ -245,7 +255,7 @@ class Hyperdrive extends hyperdrive {
         return { node, skip };
     }
 
-    async #mapper(item, { path = '', withStats = false } = {}) {
+    async #mapper<S extends boolean = false>(item, { path = '', withStats = false } = {}): Promise<TT.Item<S>> {
         const self = this;
         let name: string;
         let pathname: string;
@@ -260,12 +270,13 @@ class Hyperdrive extends hyperdrive {
             name,
             path: pathname
         });
-        if (!withStats) return mapped;
+        if (!withStats) return mapped as any;
         mapped['stat'] = await self.stat(pathname);
-        return mapped;
+        return mapped as any;
     };
 
     async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {
+        if (folder.endsWith('/')) folder = folder.slice(0, -1);
         let prev = '/';
         while (true) {
             const { node, skip } = await this.#iteratorPeek(folder, prev);
@@ -286,12 +297,35 @@ class Hyperdrive extends hyperdrive {
     }
 
     #shallowReadStream(folder: string, opts: Omit<TT.ReadDirOpts, 'readable'>) {
-        const readableGenerator = this.#shallowReadGenerator(folder, opts)
+        return this.#generatorToReadable(this.#shallowReadGenerator(folder, opts))
+    }
+
+    async *#listGenerator(folder, { fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ListOpts, 'recursive' | 'readable'>) {
+        let dirs = []
+        for await (const node of this.entries({
+            gt: folder + '/', lt: folder + '0'
+        }) as Readable<TT.Node>) {
+            if (search && !node.key.match(search)) continue;
+            if (!fileOnly) dirs = [...new Set([...dirs, ...await this.getDirs(node.key, { exclude: folder })])]
+            const mappedNode = await this.#mapper(node, { withStats })
+            if (!search || mappedNode.name.match(search)) yield mappedNode
+        }
+        if (fileOnly) return;
+        //    yield* dirs.map(dir => ({ key: dir }))
+        for (const dir of dirs) {
+            yield { key: dir }
+        }
+    }
+
+    #list(folder: string, opts: Omit<TT.ListOpts, 'recursive' | 'readable'>) {
+        return this.#generatorToReadable(this.#listGenerator(folder, opts))
+    }
+
+    #generatorToReadable<T = unknown, TReturn = any, TNext = unknown>(readableGenerator: AsyncGenerator<T, TReturn, TNext>) {
         return new Readable({
             async read(cb) {
                 try {
                     const { done, value } = await readableGenerator.next();
-                    console.log({ done, value })
                     if (done) {
                         this.push(null);
                         return cb(null);
@@ -304,37 +338,11 @@ class Hyperdrive extends hyperdrive {
             }
         })
     }
-    #list(folder: string, { fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ListOpts, 'recursive' | 'readable'>) {
-        folder = folder.replace(/\/$/, '');
-        let dirs = [];
-        const self = this;
-        return pipeline(
-            this.entries({
-                gt: folder + '/', lt: folder + '0'
-            }),
-            new Transform({
-                async transform(node: TT.Node, callback) {
-                    if (search && !node.key.match(search)) return callback();
-                    if (!fileOnly) dirs = [...new Set([...dirs, ...await self.getDirs(node.key, { exclude: folder })])]
-                    self.#mapper(node, { withStats }).then((node) => {
-                        if (!search || node.name.match(search)) this.push(node as any);
-                    }).finally(callback);
-                },
-                flush(callback) {
-                    if (fileOnly) return callback()
-                    dirs.forEach((dir) => {
-                        self.#mapper({ key: dir }, { withStats }).then((node) => {
-                            if (!search || node.name.match(search)) this.push(node as any)
-                        }).finally(callback);
-                    });
-                }
-            }))
-    }
 
-    async #toArray<F extends (item: any) => Promise<any>>(read: Readable<TT.Node>, mapper?: F) {
+    async #toArray<T = any, MR = any, M extends ((item: T) => Promise<MR> | undefined) = any, RG extends Readable<T> | AsyncGenerator<T, T> = any>(read: RG, mapper?: M): Promise<M extends undefined ? T : MR> {
         const items = []
         for await (const item of read) items.push(mapper ? await mapper(item) : item);
-        return items
+        return items as any;
     }
 
     async *#toGenerator(read: Readable<TT.Node>) {

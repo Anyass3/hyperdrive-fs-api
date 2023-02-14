@@ -10,6 +10,8 @@ declare class Hyperdrive extends hyperdrive {
     #private;
     stats: HyperBee;
     local: LocalDrive;
+    private _list;
+    private _readdir;
     constructor(store: any, dkey?: string | Buffer, localDriveRoot?: string);
     get peers(): any;
     get metadata(): any;
@@ -17,7 +19,7 @@ declare class Hyperdrive extends hyperdrive {
     get readable(): boolean;
     get writable(): boolean;
     readdir<S extends boolean = false, B extends boolean = false>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
-    list<S extends boolean = false, B extends boolean = false>(path: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
+    list<S extends boolean = false, B extends boolean = false>(folder: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
         recursive: boolean;
         withStats: S;
         fileOnly: boolean;
@@ -25,13 +27,15 @@ declare class Hyperdrive extends hyperdrive {
         search: string | RegExp;
     }>): TT.List<S, B>;
     throwErrorOnExists(path: string, isDir?: boolean): Promise<void>;
-    write(path: string, content: any, encoding: any): Promise<void>;
-    put(path: string, blob: Buffer, opts?: any): Promise<void>;
+    write(path: string, content: any, encoding: any): Promise<TT.Node>;
+    put(path: string, blob: Buffer, opts?: any): Promise<TT.Node>;
     read(path: string, encoding: any): Promise<any>;
-    del(path: string, resolveStats?: boolean): Promise<any>;
-    rmDir(path: any, recursive?: boolean): Promise<void>;
-    copy(source: string, dest: string): Promise<void>;
-    move(source: string, dest: string): Promise<void>;
+    del(path: string): Promise<TT.Node>;
+    rmDir(path: any, { recursive }?: {
+        recursive?: boolean;
+    }): Promise<void>;
+    copy(source: string, dest: string): Promise<TT.Node>;
+    move(source: string, dest: string): Promise<TT.Node>;
     createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
     createFolderWriteStream(path: string): Writable<{
         path: string;

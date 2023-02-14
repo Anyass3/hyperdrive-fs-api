@@ -2,7 +2,7 @@ import test from 'brittle'
 import Corestore from 'corestore';
 import RAM from 'random-access-memory'
 import { pipelinePromise } from 'streamx';
-import Hyperdrive from './lib/index.js';
+import Hyperdrive from '../lib/index.js';
 
 const getDrive = () => {
 
@@ -50,7 +50,7 @@ test('files/dirs stats', async t => {
 test('Coping and moving files', async t => {
     const drive = getDrive();
     await drive.write('/dir1/dir2/file.txt', 'hi there', 'utf-8');
-    await drive.copy('/dir1/dir2/file.txt', '/copyed.txt');
+    await drive.copy('/dir1/dir2/file.txt', '/copied.txt');
 
     t.is(await drive.get('/dir1/dir2/file.txt').toString(), await drive.get('/copyed.txt').toString())
 
@@ -59,6 +59,7 @@ test('Coping and moving files', async t => {
     t.not(await drive.exists('/dir1/dir2/file.txt'))
 
     t.ok(await drive.exists('/moved.txt'))
+    t.ok(await drive.exists('/copied.txt'))
 })
 
 test('stream folders/dirs', async t => {

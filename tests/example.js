@@ -1,11 +1,10 @@
 
 import Corestore from 'corestore';
 import RAM from 'random-access-memory'
-import Hyperdrive from './lib/index.js';
+import Hyperdrive from '../lib/index.js';
 
 
 async function main() {
-    console.log('ji')
     const corestore = new Corestore((() => {
         return new RAM();
     }))
@@ -22,18 +21,16 @@ async function main() {
     await drive.move('/a/hello.txt', 'a/moved.tx')
     console.log('list', await drive.readdir('/a', { search: 'e', fileOnly: true }))
 
-    for await (const { key, value } of drive.files.createReadStream({ gt: '/a/c' })) {
-        console.log(`${key} -> ${value}`)
-    }
-    console.time('import')
-    await drive.import('./@types', 'lib');
-    console.timeEnd('import')
-    console.log('list', await drive.list('/lib', { search: '', fileOnly: true }))
-    // console.log(await drive.read('/lib/typings.d.ts', 'utf-8'))
+    // for await (const { key, value } of drive.files.createReadStream({ gt: '/a/c' })) {
+    //     console.log(`${key} -> ${value}`)
+    // }
 
-    console.time('export')
-    await drive.export('/lib', 'exports');
-    console.timeEnd('export')
+    // console.log('list', await drive.list('/lib', { search: '', fileOnly: true }))
+    // console.log(await drive.read('/lib/typings.d.ts', 'utf-8'))
+    // console.log('emtry', await drive.entry('/a/'))
+    // console.time('export')
+    // await drive.export('/lib', 'exports');
+    // console.timeEnd('export')
 
     // console.log('dir', await drive.list('/a/b'));
     // console.log('dir', await drive.list('/a', { stat: true }));

@@ -22,7 +22,6 @@ test('create files/dirs', async t => {
 
     const list1 = await drive.list('/', { recursive: true });
     const list2 = await drive.readdir('/dir1');
-
     t.is(list1.length, 4)
     t.is(list2.length, 2)
     t.exception(() => drive.put('/dir1/dir2', Buffer.from('')))
@@ -38,7 +37,7 @@ test('files/dirs stats', async t => {
     await drive.write('/dir1/dir2/file.txt', 'hi there', 'utf-8');
     await drive.write('/dir1/file.txt', 'hi', 'utf-8');
 
-    const list1 = await drive.list('/', { recursive: true });
+    const list1 = await drive.list('/dir1', { recursive: true });
     const list2 = await drive.readdir('/dir1', { withStats: true });
 
     t.absent(list1[0].stat)

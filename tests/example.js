@@ -19,18 +19,17 @@ async function main() {
     await drive.put('/a/b/d/ok.py', Buffer.from('p=10'))
 
     await drive.move('/a/hello.txt', 'a/moved.tx')
+    await drive.copy('/a/b/hmm', 'a/copied.tx')
 
     console.time('import')
     await drive.import('lib', 'a/lib');
     await drive.import('src', 'a/lib');
     console.timeEnd('import')
-    console.log('list', await drive.readdir('/a', { search: 'e', fileOnly: true }))
-
     // for await (const { key, value } of drive.files.createReadStream({ gt: '/a/c' })) {
     //     console.log(`${key} -> ${value}`)
     // }
 
-    // console.log('list', await drive.list('/lib', { search: '', fileOnly: true }))
+    console.log('list', await drive.list('/a/lib', { search: '', fileOnly: false }))
     // console.log(await drive.read('/lib/typings.d.ts', 'utf-8'))
     // console.log('emtry', await drive.entry('/a/'))
     // console.time('export')

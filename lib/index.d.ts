@@ -1,7 +1,5 @@
 /// <reference types="node" />
-/// <reference types="node" />
 import hyperdrive from 'hyperdrive';
-import fs from 'fs';
 import { Readable, Writable } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings';
@@ -50,7 +48,7 @@ declare class Hyperdrive extends hyperdrive {
         path: string;
         readable: Readable;
     }>>;
-    exists(path: fs.PathLike): Promise<boolean>;
+    exists(path: string): Promise<boolean>;
     stat(path: string): Promise<TT.Stat>;
     getDirs(path: string, { exclude, resolve }?: {
         exclude?: string;

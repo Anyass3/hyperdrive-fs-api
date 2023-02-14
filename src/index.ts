@@ -60,7 +60,7 @@ class Hyperdrive extends hyperdrive {
         if (isDir) {
             if ((await this.entry(path))) throw Error('File already exists: ' + path);
         }
-        else if ((await this.#countReadable(super.readdir(path)))) {
+        else if (await this.#isDirectory(path)) {
             throw Error('Directory already exists: ' + path);
         }
         await this.getDirs(path, { resolve: true });
@@ -90,7 +90,7 @@ class Hyperdrive extends hyperdrive {
     async rmDir(path, { recursive = false } = {}) {
         path = path.replace(/\/$/, '');
         if (!recursive) {
-            if ((await this.#countReadable(super.readdir(path)))) {
+            if ((await this.#isDirectory(path))) {
                 throw Error(`Directory is not empty. 
                 Set optional recursive option to true;
                 to delete it with it's contents`);
@@ -104,7 +104,7 @@ class Hyperdrive extends hyperdrive {
 
     async copy(source: string, dest: string) {
         const node = await this.entry(source)
-        if (!node?.value.blob) throw Error('Source file does not exist')
+        if (!node?.value.blob) throw Error('Source file does not exist: ' + source)
         await this.throwErrorOnExists(dest);
         // this.createReadStream(source).pipe(this.createWriteStream(dest));
         return this.files.put(join('/', dest), { ...node }) as unknown as TT.Node;
@@ -112,7 +112,7 @@ class Hyperdrive extends hyperdrive {
 
     async move(source: string, dest: string) {
         const node = await this.entry(source)
-        if (!node?.value.blob) throw Error('Source file does not exist');
+        if (!node?.value.blob) throw Error('Source file does not exist: ' + source);
         await this.throwErrorOnExists(dest);
         const newNode = await this.files.put(join('/', dest), { ...node.value });
         await this.del(source);
@@ -165,8 +165,8 @@ class Hyperdrive extends hyperdrive {
         })
     }
 
-    async exists(path: fs.PathLike) {
-        return !!(await this.entry(path) || (await this.#countReadable(super.readdir(path))));
+    async exists(path: string) {
+        return !!(await this.entry(path) || (await this.#isDirectory(path)));
     }
 
     async stat(path: string): Promise<TT.Stat> {
@@ -220,7 +220,8 @@ class Hyperdrive extends hyperdrive {
         path = path.replace(/\/$/, '');
         const node = await super.del(path);
         await this.stats.del(path);
-        if (resolveStats) await this.#resolveDirStats(path as string);
+        if (resolveStats)
+            await this.#resolveDirStats(path);
         return node as TT.Node;
     }
 
@@ -234,13 +235,13 @@ class Hyperdrive extends hyperdrive {
         const suffix = node.key.slice(folder.length + 1)
         const i = suffix.indexOf('/')
         const name = i === -1 ? suffix : suffix.slice(0, i)
-        const isFile: boolean = node.key.endsWith(name) && !!node.value;
-        return { name, isFile, pathname: join(folder, name) }
+        // const isFile: boolean = node.key.endsWith(name)// && !!node.value;
+        return { name, isFile: node.key.endsWith(name) }
     }
 
     async #iteratorPeek(folder: string, prev: string) {
         let node: TT.Node | null = null;
-        let skip: boolean;
+        // let skip: boolean;
         const ite = this.files.createRangeIterator({
             gt: folder + prev,
             lt: folder + '0', limit: 1
@@ -248,11 +249,11 @@ class Hyperdrive extends hyperdrive {
         try {
             await ite.open();
             node = await ite.next();
-            if (node && !node.value) skip = true;
+            // if (node && !node.value) skip = true;
         } finally {
             await ite.close();
         }
-        return { node, skip };
+        return node// { node, skip };
     }
 
     async #mapper<S extends boolean = false>(key: string, {/* path = '',*/ withStats = false } = {}): Promise<TT.Item<S>> {
@@ -275,23 +276,44 @@ class Hyperdrive extends hyperdrive {
         return mapped as any;
     };
 
-    async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {
-        folder = folder.replace(/\/$/, '');
+    async #isDirectory(folder: string) {
+        folder = folder.replace(/\/$/, '')
         let prev = '/';
         while (true) {
-            const { node, skip } = await this.#iteratorPeek(folder, prev);
-            if (skip) {
-                continue;
+            const node = await this.#iteratorPeek(folder, prev);
+
+            if (!node) {
+                return false;
             }
+
+            const { name, isFile } = this.#getNodeName(node, folder);
+
+            if (isFile) return true;
+
+            prev = '/' + name + '0';
+        }
+    }
+
+    async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {
+        folder = folder.replace(/\/$/, '')
+        let prev = '/';
+        while (true) {
+            const node = await this.#iteratorPeek(folder, prev);
+            // if (skip) {
+            //     continue;
+            // }
             if (!node) {
                 break;
             }
-            const { name, isFile, pathname } = this.#getNodeName(node, folder);
+
+            const { name, isFile } = this.#getNodeName(node, folder);
+
             prev = '/' + name + '0';
+
             if ((search && !name.match(search)) || (fileOnly && !isFile)) {
                 continue;
             }
-            yield !nameOnly ? await this.#mapper(pathname, { withStats }) : name;
+            yield !nameOnly ? await this.#mapper(join(folder, name), { withStats }) : name;
         }
 
     }
@@ -357,7 +379,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async #setStat(path: string, { method = 'create', extras = {}, recursive = true } = {} as { method?: 'access' | 'modify' | 'create' | 'change', extras?: Record<string, any>, recursive?: boolean }) {
-        path = path.replace(/\/$/, '');
+        path = join('/', path.replace(/\/$/, ''));
         let stat = (await this.stats.get(path))?.value
         if (!stat && method != 'create') method = 'create';
         if (stat && method != 'modify') method = 'modify';

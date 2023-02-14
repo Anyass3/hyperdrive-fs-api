@@ -23,6 +23,7 @@ async function speedTest(times = 50) {
     await drive.import('src', 'lib');
     await drive.import('@types', 'lib');
     console.timeEnd('import')
+
     let folder = '/assa/as/sa/sa';
 
     console.time('folder:slice')
@@ -93,5 +94,4 @@ async function speedTest(times = 50) {
     }
 }
 
-
-speedTest(100)
+speedTest(1000)

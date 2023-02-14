@@ -109,7 +109,7 @@ It has the same api with that of hyperdrive-next; but also resolves stats
 ```ts
 drive.stat(path: string): Promise<Stat>
 ```
-checkout [Stat](/#Stat) type below
+checkout [Stat](https://github.com/Anyass3/hyperdrive-x#stat) type below
 
 ### write
 ```ts

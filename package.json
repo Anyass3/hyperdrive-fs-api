@@ -7,6 +7,8 @@
     "build": "tsc",
     "test": "node test.ts",
     "dev": "nodemon -e ts -w src --exec pnpm build",
+    "test:perform": "node tests/performance.js",
+    "test:example": "node tests/example.js",
     "test:w": "nodemon -w lib,test.js test"
   },
   "devDependencies": {

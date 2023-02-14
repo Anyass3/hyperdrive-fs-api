@@ -238,7 +238,7 @@ class Hyperdrive extends hyperdrive {
         return { name, isFile, pathname: join(folder, name) }
     }
 
-    async #iteratorPeek(folder: string, prev: string, fileOnly = false) {
+    async #iteratorPeek(folder: string, prev: string) {
         let node: TT.Node | null = null;
         let skip: boolean;
         const ite = this.files.createRangeIterator({
@@ -255,28 +255,28 @@ class Hyperdrive extends hyperdrive {
         return { node, skip };
     }
 
-    async #mapper<S extends boolean = false>(item, { path = '', withStats = false } = {}): Promise<TT.Item<S>> {
+    async #mapper<S extends boolean = false>(key: string, {/* path = '',*/ withStats = false } = {}): Promise<TT.Item<S>> {
         const self = this;
         let name: string;
-        let pathname: string;
-        if (typeof item == 'string') {
-            name = item.replace(/(^\/)|(\/$)/g, '');
-            pathname = join(path, item)
-        } else {
-            name = item.key.replace(/(^\/)|(\/$)/g, '').split('/').at(-1)
-            pathname = item.key
-        }
+        // let pathname: string;
+        // if (typeof item == 'string') {
+        //     name = item.replace(/(^\/)|(\/$)/g, '');
+        //     pathname = join(path, item)
+        // } else {
+        name = key.replace(/(^\/)|(\/$)/g, '').split('/').at(-1)
+        // pathname = key
+        // }
         const mapped = ({
             name,
-            path: pathname
+            path: key
         });
         if (!withStats) return mapped as any;
-        mapped['stat'] = await self.stat(pathname);
+        mapped['stat'] = await self.stat(key);
         return mapped as any;
     };
 
     async *#shallowReadGenerator(folder: string, { nameOnly = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ReadDirOpts, 'readable'>) {
-        if (folder.endsWith('/')) folder = folder.slice(0, -1);
+        folder = folder.replace(/\/$/, '');
         let prev = '/';
         while (true) {
             const { node, skip } = await this.#iteratorPeek(folder, prev);
@@ -291,7 +291,7 @@ class Hyperdrive extends hyperdrive {
             if ((search && !name.match(search)) || (fileOnly && !isFile)) {
                 continue;
             }
-            yield !nameOnly ? await this.#mapper({ key: pathname }, { withStats }) : name;
+            yield !nameOnly ? await this.#mapper(pathname, { withStats }) : name;
         }
 
     }
@@ -301,19 +301,20 @@ class Hyperdrive extends hyperdrive {
     }
 
     async *#listGenerator(folder, { fileOnly = false, withStats = false, search = '' } = {} as Omit<TT.ListOpts, 'recursive' | 'readable'>) {
+        folder = folder.replace(/\/$/, '');
         let dirs = []
         for await (const node of this.entries({
             gt: folder + '/', lt: folder + '0'
         }) as Readable<TT.Node>) {
             if (search && !node.key.match(search)) continue;
             if (!fileOnly) dirs = [...new Set([...dirs, ...await this.getDirs(node.key, { exclude: folder })])]
-            const mappedNode = await this.#mapper(node, { withStats })
+            const mappedNode = await this.#mapper(node.key, { withStats })
             if (!search || mappedNode.name.match(search)) yield mappedNode
         }
         if (fileOnly) return;
         //    yield* dirs.map(dir => ({ key: dir }))
         for (const dir of dirs) {
-            yield { key: dir }
+            yield await this.#mapper(dir, { withStats })
         }
     }
 

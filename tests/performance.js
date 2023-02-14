@@ -21,7 +21,17 @@ async function speedTest(times = 50) {
     console.time('import')
     await drive.import('lib', 'lib');
     await drive.import('src', 'lib');
+    await drive.import('@types', 'lib');
     console.timeEnd('import')
+    let folder = '/assa/as/sa/sa';
+
+    console.time('folder:slice')
+    if (folder.endsWith('/')) folder.slice(0, -1);
+    console.timeEnd('folder:slice')
+
+    console.time('folder:replace')
+    folder.replace(/\/$/, '');
+    console.timeEnd('folder:replace')
 
     let list_readable = 0, super_list = 0, list_array = 0, readdir_readable = 0, super_readdir = 0, readdir_array = 0;
     for (let i = 0; i < times; i++) {
@@ -84,4 +94,4 @@ async function speedTest(times = 50) {
 }
 
 
-speedTest(1000)
+speedTest(100)

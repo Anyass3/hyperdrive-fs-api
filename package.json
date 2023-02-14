@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "node test.ts",
+    "test": "node tests/test.js",
     "dev": "nodemon -e ts -w src --exec pnpm build",
     "test:perform": "node tests/performance.js",
     "test:example": "node tests/example.js",

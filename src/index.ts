@@ -177,9 +177,7 @@ class Hyperdrive extends hyperdrive {
     }
 
     async isDirectory(path: string) {
-        const node = await this.#iteratorPeek(path.replace(/\/$/, ''), '/');
-        if (!node) return false;
-        return true;
+        return Boolean(await this.#iteratorPeek(path.replace(/\/$/, ''), '/'));
     }
 
     async exists(path: string) {

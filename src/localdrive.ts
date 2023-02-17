@@ -3,8 +3,9 @@ import { Readable, Writable } from 'streamx';
 import * as fsp from 'fs/promises';
 import * as fs from 'fs'
 import { extname, resolve, join, basename, dirname } from 'path';
-interface ListOpts { recursive: boolean, fileOnly: boolean, withStats: boolean, search: RegExp | string }
+import { Item, ListOpts } from './typings';
 
+type Files<S> = AsyncGenerator<Item<S> & { absolutePath: string }, any, Item<S> & { absolutePath: string }>
 export class LocalDrive {
     root: string;
     fsp: typeof fsp;
@@ -24,7 +25,7 @@ export class LocalDrive {
         return resolve(path);
     }
 
-    async* filesGenerator(dirPath: string, { recursive = false, fileOnly = false, withStats = false, search = '' } = {} as ListOpts) {
+    async* filesGenerator<S extends boolean = false>(dirPath: string, { recursive = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<ListOpts<S>, 'readable'>): Files<S> {
         for (const name of await fsp.readdir(dirPath)) {
             const match = name.match(search);
             const path = join(dirPath, name);
@@ -35,15 +36,19 @@ export class LocalDrive {
                 _stats['stat'] = stat;
             }
             if (stat.isDirectory()) {
-                if (!fileOnly && match) yield { path: join(path, '/'), absolutePath: join(this.resolvePath(path), '/'), name, ..._stats };
-                if (recursive) yield* await this.filesGenerator(path, { recursive, fileOnly, withStats, search });
+                if (!fileOnly && match) yield { path, absolutePath: this.resolvePath(path), name, ..._stats } as any;
+                if (recursive) yield* await this.filesGenerator(path, { recursive, fileOnly, withStats, search }) as any;
             }
-            else if (match) yield { path, absolutePath: this.resolvePath(path), name, ..._stats };
+            else if (match) yield { path, absolutePath: this.resolvePath(path), name, ..._stats } as any;
         }
     }
 
-    list(path, opts: ListOpts) {
-        return Array.from(this.filesGenerator(path, opts));
+    async list<S extends boolean = false>(path, opts: Omit<ListOpts<S>, 'readable'>) {
+        const items = [] as Item<S> & {
+            absolutePath: string;
+        }[]
+        for await (const item of this.filesGenerator(path, opts)) items.push(item);
+        return items
     }
 
     #initFileStream() {

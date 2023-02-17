@@ -1,5 +1,7 @@
 /// <reference types="node" />
+/// <reference types="node" />
 import hyperdrive from 'hyperdrive';
+import fs from 'fs';
 import { Readable, Writable } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings';
@@ -38,8 +40,16 @@ declare class Hyperdrive extends hyperdrive {
     rmDir(path: any, { recursive }?: {
         recursive?: boolean;
     }): Promise<void>;
-    copy(source: string, dest: string): Promise<TT.Node>;
-    move(source: string, dest: string): Promise<TT.Node>;
+    copy(source: string, dest: string, { awaitStats }?: {
+        awaitStats?: boolean;
+    }): Promise<TT.Node>;
+    move(source: string, dest: string, { awaitStats }?: {
+        awaitStats?: boolean;
+    }): Promise<TT.Node>;
+    createWriteStream(path: string, opts?: {
+        executable?: boolean;
+        metadata?: any;
+    }): fs.WriteStream;
     createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
     createFolderWriteStream(path: string, { awaitStats }?: {
         awaitStats?: boolean;
@@ -58,7 +68,9 @@ declare class Hyperdrive extends hyperdrive {
     }>>;
     isDirectory(path: string): Promise<boolean>;
     exists(path: string): Promise<boolean>;
-    stat(path: string): Promise<TT.Stat>;
+    stat(path: string, { isDir }?: {
+        isDir?: boolean;
+    }): Promise<TT.Stat>;
     getDirs(path: string, { exclude, resolve }?: {
         exclude?: string;
         resolve?: boolean;

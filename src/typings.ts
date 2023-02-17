@@ -16,7 +16,7 @@ interface BaseStat {
     isFile: () => boolean,
 }
 export interface StatDir extends BaseStat {
-    itemsCount: number;
+    // itemsCount: number;
 }
 
 export interface StatFile extends BaseStat {

@@ -59,19 +59,19 @@ declare class Hyperdrive extends EventEmitter {
 	symlink(name: any, dst: any, { metadata }?: {
 		metadata?: any;
 	}): Promise<any>;
-	entry(name: fs.PathLike): Promise<Entry>;
+	entry(name: string): Promise<Entry>;
 	diff(length: any, folder: any, opts: any): any;
 	downloadDiff(length: any, folder: any, opts: any): Promise<void>;
 	downloadRange(dbRanges: any, blobRanges: any): Promise<void>;
 	entries(opts: any): any;
-	download(folder: fs.PathLike, opts: any): any;
-	list(folder?: fs.PathLike, { recursive }?: {
+	download(folder: string, opts: any): any;
+	list(folder?: string, { recursive }?: {
 		recursive?: boolean;
 	}): any;
-	readdir(folder?: fs.PathLike): any;
+	readdir(folder?: string): any;
 	mirror(out: any, opts: any): any;
-	createReadStream: (path: fs.PathLike, options?: BufferEncoding) => fs.ReadStream;
-	createWriteStream(name: fs.PathLike, { executable, metadata }?: {
+	createReadStream: (path: string, options?: BufferEncoding) => fs.ReadStream;
+	createWriteStream(name: string, { executable, metadata }?: {
 		executable?: boolean;
 		metadata?: any;
 	}): fs.WriteStream;

@@ -70,7 +70,7 @@ class Hyperdrive extends hyperdrive {
         return await this.put(path, Buffer.from(content, encoding));
     }
 
-    override async put(path: string, blob: Buffer, { awaitStats = true, ...opts } = {} as {
+    override async put(path: string, blob: Buffer, { awaitStats = false, ...opts } = {} as {
         executable?: boolean;
         awaitStats?: boolean;
         metadata?: Record<string, any>;
@@ -87,7 +87,7 @@ class Hyperdrive extends hyperdrive {
         return content?.toString(encoding);
     }
 
-    override async del(path: string, { awaitStats = true } = {}) {
+    override async del(path: string, { awaitStats = false } = {}) {
         return this.#del(path, { resolveStats: true, awaitStats });
     }
 
@@ -106,21 +106,31 @@ class Hyperdrive extends hyperdrive {
         await this.stats.del(path);
     }
 
-    async copy(source: string, dest: string) {
-        const node = await this.entry(source)
+    async copy(source: string, dest: string, { awaitStats = false } = {}) {
+        let node = await this.entry(source)
         if (!node?.value.blob) throw Error('Source file does not exist: ' + source)
         await this.throwErrorOnExists(dest);
         // this.createReadStream(source).pipe(this.createWriteStream(dest));
-        return this.files.put(join('/', dest), { ...node }) as unknown as TT.Node;
+        const id = await this.files.put(join('/', dest), { ...node }) as unknown as TT.Node;
+        await this.#await(async () => this.#setStat(dest), awaitStats);
+        return id
     }
 
-    async move(source: string, dest: string) {
+    async move(source: string, dest: string, { awaitStats = false } = {}) {
         const node = await this.entry(source)
         if (!node?.value.blob) throw Error('Source file does not exist: ' + source);
         await this.throwErrorOnExists(dest);
         const newNode = await this.files.put(join('/', dest), { ...node.value });
         await this.del(source);
+        await this.#await(async () => this.#setStat(dest), awaitStats);
         return newNode as unknown as TT.Node;
+    }
+    createWriteStream(path: string, opts?: { executable?: boolean; metadata?: any; }) {
+        const ws = super.createWriteStream(path, opts)
+        ws.on('finish', () => {
+            this.#setStat(path)
+        })
+        return ws
     }
 
     createFolderReadStream(path: string) {
@@ -139,7 +149,7 @@ class Hyperdrive extends hyperdrive {
         })
     }
 
-    createFolderWriteStream(path: string, { awaitStats = true } = {}) {
+    createFolderWriteStream(path: string, { awaitStats = false } = {}) {
         const self = this;
         let checkedWritability = false;
         return new Writable<{ path: string, readable: Readable }>({
@@ -168,10 +178,7 @@ class Hyperdrive extends hyperdrive {
                 data.readable.pipe(ws);
                 data.readable.on('error', cb);
 
-                ws.on('close', async () => {
-                    await self.#await(async () => self.#setStat(data.path), awaitStats);
-                    cb()
-                });
+                ws.on('finish', cb);
             },
         })
     }
@@ -184,18 +191,17 @@ class Hyperdrive extends hyperdrive {
         return !!(await this.entry(path) || (await this.isDirectory(path)));
     }
 
-    async stat(path: string): Promise<TT.Stat> {
+    async stat(path: string, { isDir } = {} as { isDir?: boolean }): Promise<TT.Stat> {
         path = path.replace(/\/$/, '');
         const entry = await this.entry(path)
         const stat = (await this.stats.get(path))?.value;
         if (!entry) {
-            const itemsCount = (await this.readdir(path, { readable: false })).length
-            if (!itemsCount && !stat) throw Error('Path does not exist');
+            if (typeof isDir != 'boolean') isDir = await this.isDirectory(path);
+            if (!isDir) throw Error('Path does not exist');
             return {
                 ...(stat || {}),
                 isDirectory: () => true,
                 isFile: () => false,
-                itemsCount,
             }
         }
         return {
@@ -231,7 +237,7 @@ class Hyperdrive extends hyperdrive {
         await pipelinePromise(this.local.createFolderReadStream(localPath), this.createFolderWriteStream(path))
     }
 
-    async #del(path: string, { resolveStats = true, awaitStats = true }) {
+    async #del(path: string, { resolveStats = true, awaitStats = false }) {
         path = path.replace(/\/$/, '');
         const node = await super.del(path);
         await this.#await(async () => {
@@ -258,7 +264,7 @@ class Hyperdrive extends hyperdrive {
         const i = suffix.indexOf('/')
         const name = i === -1 ? suffix : suffix.slice(0, i)
         // const isFile: boolean = node.key.endsWith(name)// && !!node.value;
-        return { name, isFile: node.key.endsWith(name) }
+        return { name, isDir: !node.key.endsWith(name) }
     }
 
     async #iteratorPeek(folder: string, prev: string) {
@@ -278,7 +284,7 @@ class Hyperdrive extends hyperdrive {
         return node// { node, skip };
     }
 
-    async #mapper<S extends boolean = false>(key: string, {/* path = '',*/ withStats = false } = {}): Promise<TT.Item<S>> {
+    async #mapper<S extends boolean = false>(key: string, {/* path = '',*/ withStats = false, isDir } = {} as { withStats?: boolean, isDir?: boolean }): Promise<TT.Item<S>> {
         const self = this;
         let name: string;
         // let pathname: string;
@@ -294,7 +300,7 @@ class Hyperdrive extends hyperdrive {
             path: key
         });
         if (!withStats) return mapped as any;
-        mapped['stat'] = await self.stat(key);
+        mapped['stat'] = await self.stat(key, { isDir });
         return mapped as any;
     }
 
@@ -310,14 +316,14 @@ class Hyperdrive extends hyperdrive {
                 break;
             }
 
-            const { name, isFile } = this.#getNodeName(node, folder);
+            const { name, isDir } = this.#getNodeName(node, folder);
 
             prev = '/' + name + '0';
 
-            if ((search && !name.match(search)) || (fileOnly && !isFile)) {
+            if ((search && !name.match(search)) || (fileOnly && isDir)) {
                 continue;
             }
-            yield !nameOnly ? await this.#mapper(join(folder, name), { withStats }) : name;
+            yield !nameOnly ? await this.#mapper(join(folder, name), { withStats, isDir }) : name;
         }
 
     }
@@ -334,13 +340,13 @@ class Hyperdrive extends hyperdrive {
         }) as Readable<TT.Node>) {
             if (search && !node.key.match(search)) continue;
             if (!fileOnly) dirs = [...new Set([...dirs, ...await this.getDirs(node.key, { exclude: folder })])]
-            const mappedNode = await this.#mapper(node.key, { withStats })
+            const mappedNode = await this.#mapper(node.key, { withStats, isDir: false })
             if (!search || mappedNode.name.match(search)) yield mappedNode
         }
         if (fileOnly) return;
         //    yield* dirs.map(dir => ({ key: dir }))
         for (const dir of dirs) {
-            yield await this.#mapper(dir, { withStats })
+            yield await this.#mapper(dir, { withStats, isDir: true })
         }
     }
 

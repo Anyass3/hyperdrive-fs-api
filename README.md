@@ -196,7 +196,7 @@ interface BaseStat {
     isFile: () => boolean;
 }
 interface StatDir extends BaseStat {
-    itemsCount: number;
+    // itemsCount: number;
 }
 interface StatFile extends BaseStat {
     byteOffset: number;

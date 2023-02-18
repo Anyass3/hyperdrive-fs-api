@@ -44,9 +44,9 @@ export class LocalDrive {
     }
 
     async list<S extends boolean = false>(path, opts: Omit<ListOpts<S>, 'readable'>) {
-        const items = [] as Item<S> & {
+        const items = [] as (Item<S> & {
             absolutePath: string;
-        }[]
+        })[]
         for await (const item of this.filesGenerator(path, opts)) items.push(item);
         return items
     }

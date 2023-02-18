@@ -23,9 +23,9 @@ export declare class LocalDrive {
         readable: boolean;
         search: string | RegExp;
     }>, "readable">): Files<S>;
-    list<S extends boolean = false>(path: any, opts: Omit<ListOpts<S>, 'readable'>): Promise<Item<S> & {
+    list<S extends boolean = false>(path: any, opts: Omit<ListOpts<S>, 'readable'>): Promise<(Item<S> & {
         absolutePath: string;
-    }[]>;
+    })[]>;
     createFolderReadStream(path: any): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
     createFolderWriteStream(path: string): Writable<{
         path: string;

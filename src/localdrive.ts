@@ -2,13 +2,13 @@
 import { Readable, Writable } from 'streamx';
 import * as fsp from 'fs/promises';
 import * as fs from 'fs'
-import { extname, resolve, join, basename, dirname } from 'path';
+import { resolve, join, dirname } from 'path';
 import { Item, ListOpts } from './typings';
 
 type Files<S> = AsyncGenerator<Item<S> & { absolutePath: string }, any, Item<S> & { absolutePath: string }>
+
 export class LocalDrive {
     root: string;
-    fsp: typeof fsp;
 
     createReadStream: typeof fs.createReadStream;
     createWriteStream: typeof fs.createWriteStream;
@@ -26,6 +26,7 @@ export class LocalDrive {
     }
 
     async* filesGenerator<S extends boolean = false>(dirPath: string, { recursive = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<ListOpts<S>, 'readable'>): Files<S> {
+        dirPath = this.resolvePath(dirPath);
         for (const name of await fsp.readdir(dirPath)) {
             const match = name.match(search);
             const path = join(dirPath, name);
@@ -43,7 +44,7 @@ export class LocalDrive {
         }
     }
 
-    async list<S extends boolean = false>(path, opts: Omit<ListOpts<S>, 'readable'>) {
+    async list<S extends boolean = false>(path: string, opts: Omit<ListOpts<S>, 'readable'>) {
         const items = [] as (Item<S> & {
             absolutePath: string;
         })[]
@@ -52,10 +53,10 @@ export class LocalDrive {
     }
 
     #initFileStream() {
-        this.createReadStream = (path: string, opts: any) => {
+        this.createReadStream = (path: string, opts?: any) => {
             return fs.createReadStream(this.resolvePath(path), opts)
         }
-        this.createWriteStream = (path: string, opts: any) => {
+        this.createWriteStream = (path: string, opts?: any) => {
             return fs.createWriteStream(this.resolvePath(path), opts)
         }
     }

@@ -101,7 +101,7 @@ class Hyperdrive extends hyperdrive {
             }
         }
         for await (const item of this.list(path, { recursive, readable: true })) {
-            await this.del(item.stat);
+            await this.del(item.path);
         }
         await this.stats.del(path);
     }

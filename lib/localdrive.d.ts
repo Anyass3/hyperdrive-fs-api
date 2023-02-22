@@ -1,6 +1,4 @@
-/// <reference types="node" />
 import { Readable, Writable } from 'streamx';
-import * as fsp from 'fs/promises';
 import * as fs from 'fs';
 import { Item, ListOpts } from './typings';
 type Files<S> = AsyncGenerator<Item<S> & {
@@ -11,7 +9,6 @@ type Files<S> = AsyncGenerator<Item<S> & {
 export declare class LocalDrive {
     #private;
     root: string;
-    fsp: typeof fsp;
     createReadStream: typeof fs.createReadStream;
     createWriteStream: typeof fs.createWriteStream;
     constructor(root?: string);
@@ -23,7 +20,7 @@ export declare class LocalDrive {
         readable: boolean;
         search: string | RegExp;
     }>, "readable">): Files<S>;
-    list<S extends boolean = false>(path: any, opts: Omit<ListOpts<S>, 'readable'>): Promise<(Item<S> & {
+    list<S extends boolean = false>(path: string, opts: Omit<ListOpts<S>, 'readable'>): Promise<(Item<S> & {
         absolutePath: string;
     })[]>;
     createFolderReadStream(path: any): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;

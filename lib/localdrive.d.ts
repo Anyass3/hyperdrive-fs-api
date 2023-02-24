@@ -3,16 +3,15 @@ import * as fs from 'fs';
 import { Item, ListOpts } from './typings';
 type Files<S> = AsyncGenerator<Item<S> & {
     absolutePath: string;
-}, any, Item<S> & {
-    absolutePath: string;
-}>;
+}, undefined>;
 export declare class LocalDrive {
     #private;
     root: string;
     createReadStream: typeof fs.createReadStream;
     createWriteStream: typeof fs.createWriteStream;
     constructor(root?: string);
-    resolvePath(path: any): string;
+    resolvePath(path: string): string;
+    resolveRelativePath(path: string): string;
     filesGenerator<S extends boolean = false>(dirPath: string, { recursive, fileOnly, withStats, search }?: Omit<Partial<{
         recursive: boolean;
         withStats: S;

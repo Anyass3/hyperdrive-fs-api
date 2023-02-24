@@ -5,7 +5,7 @@ import * as fs from 'fs'
 import { resolve, join, dirname } from 'path';
 import { Item, ListOpts } from './typings';
 
-type Files<S> = AsyncGenerator<Item<S> & { absolutePath: string }, any, Item<S> & { absolutePath: string }>
+type Files<S> = AsyncGenerator<Item<S> & { absolutePath: string }, undefined>
 
 export class LocalDrive {
     root: string;
@@ -14,33 +14,39 @@ export class LocalDrive {
     createWriteStream: typeof fs.createWriteStream;
 
     constructor(root = './') {
-        this.root = root;
+        this.root = resolve(root);
         this.#initFileStream()
     }
 
-    resolvePath(path) {
+    resolvePath(path: string) {
         if (!path.startsWith(this.root)) {
             path = join(this.root, path)
         }
         return resolve(path);
     }
-
+    resolveRelativePath(path: string) {
+        if (path.startsWith(this.root)) {
+            path = path.slice(this.root.length)
+        }
+        return path;
+    }
+    // @ts-ignore
     async* filesGenerator<S extends boolean = false>(dirPath: string, { recursive = false, fileOnly = false, withStats = false, search = '' } = {} as Omit<ListOpts<S>, 'readable'>): Files<S> {
         dirPath = this.resolvePath(dirPath);
         for (const name of await fsp.readdir(dirPath)) {
             const match = name.match(search);
-            const path = join(dirPath, name);
-            const absolutePath = this.resolvePath(path);
+            const absolutePath = join(dirPath, name);
+            const path = this.resolveRelativePath(absolutePath);
             const stat = await fsp.stat(absolutePath);
             let _stats = {};
             if (withStats) {
                 _stats['stat'] = stat;
             }
             if (stat.isDirectory()) {
-                if (!fileOnly && match) yield { path, absolutePath: this.resolvePath(path), name, ..._stats } as any;
+                if (!fileOnly && match) yield { path, absolutePath, name, ..._stats } as any;
                 if (recursive) yield* await this.filesGenerator(path, { recursive, fileOnly, withStats, search }) as any;
             }
-            else if (match) yield { path, absolutePath: this.resolvePath(path), name, ..._stats } as any;
+            else if (match) yield { path, absolutePath, name, ..._stats } as any;
         }
     }
 
@@ -63,8 +69,7 @@ export class LocalDrive {
 
     createFolderReadStream(path) {
         const self = this;
-        type F = Record<'path' | 'name', string>
-        const files: AsyncGenerator<F, F, F> = this.filesGenerator(path, { fileOnly: true, recursive: true } as ListOpts)
+        const files = this.filesGenerator(path, { fileOnly: true, recursive: true })
         return new Readable({
             async read(cb) {
                 const { done, value } = await files.next();
@@ -72,8 +77,7 @@ export class LocalDrive {
                     this.push(null);
                     return cb(null);
                 }
-                const absolutePath = self.resolvePath(value.path)
-                this.push({ path: absolutePath.slice(self.resolvePath(path).length), readable: fs.createReadStream(absolutePath) });
+                this.push({ path: value.absolutePath.slice(self.resolvePath(path).length), readable: fs.createReadStream(value.absolutePath) });
                 return cb(null);
             }
         });
@@ -81,7 +85,7 @@ export class LocalDrive {
 
     createFolderWriteStream(path: string) {
         const self = this;
-        return new Writable<{ path: string, readable: Readable }>({
+        return new Writable<{ path: string; readable: Readable }>({
             async write(data, cb) {
                 if (!data?.path || !data?.readable) {
                     return cb(null);

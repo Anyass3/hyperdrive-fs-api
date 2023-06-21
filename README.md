@@ -4,9 +4,7 @@ hyperdrive-next with extra features, somewhat similar to the late hyperdrive 10;
 
 > work-in-progress
 
-> The new https://github.com/holepunchto/hyperdrive-next is focused more on file sharing.
-
-The idea was to extend the new hyperdrive-next to include some/most hyperdrive 10 apis to atleast satisfy my [hyp-files-app](https://github.com/Anyass3/hyp-files-app) project.
+The idea was to extend the new hyperdrive 11 to include some/most hyperdrive 10 apis to atleast satisfy my [hyp-files-app](https://github.com/Anyass3/hyp-files-app) project.
 
 ## Installation
 

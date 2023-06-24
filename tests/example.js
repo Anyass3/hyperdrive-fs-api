@@ -22,8 +22,8 @@ async function main() {
     await drive.copy('/a/b/hmm', 'a/copied.tx')
     console.log(await drive.isDirectory('/a/b/hmm'))
     console.time('import')
-    await drive.import('lib', 'a/lib');
-    await drive.import('src', 'a/lib');
+    await drive.import('../lib', 'a/lib');
+    await drive.import('../src', 'a/lib');
     console.timeEnd('import')
     // for await (const { key, value } of drive.files.createReadStream({ gt: '/a/c' })) {
     //     console.log(`${key} -> ${value}`)

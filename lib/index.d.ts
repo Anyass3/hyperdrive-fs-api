@@ -1,7 +1,5 @@
 /// <reference types="node" />
-/// <reference types="node" />
 import hyperdrive from 'hyperdrive';
-import fs from 'fs';
 import { Readable, Writable } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings';
@@ -15,7 +13,6 @@ declare class Hyperdrive extends hyperdrive {
     constructor(store: any, dkey?: string | Buffer, localDriveRoot?: string);
     get peers(): any;
     get metadata(): any;
-    get closed(): boolean;
     get readable(): boolean;
     get writable(): boolean;
     readdir<S extends boolean = false, B extends boolean = false>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
@@ -49,23 +46,14 @@ declare class Hyperdrive extends hyperdrive {
     createWriteStream(path: string, opts?: {
         executable?: boolean;
         metadata?: any;
-    }): fs.WriteStream;
-    createFolderReadStream(path: string): Readable<any, any, any, true, false, import("streamx").ReadableEvents<any>>;
+    }): Writable<any>;
+    createFolderReadStream(path: string): Readable<any>;
     createFolderWriteStream(path: string, { awaitStats }?: {
         awaitStats?: boolean;
     }): Writable<{
         path: string;
         readable: Readable;
-    }, {
-        path: string;
-        readable: Readable;
-    }, {
-        path: string;
-        readable: Readable;
-    }, false, true, import("streamx").WritableEvents<{
-        path: string;
-        readable: Readable;
-    }>>;
+    }>;
     isDirectory(path: string): Promise<boolean>;
     exists(path: string): Promise<boolean>;
     stat(path: string, { isDir }?: {

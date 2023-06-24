@@ -23,9 +23,9 @@ async function speedTest(runs = 50) {
     const drive = new Hyperdrive(corestore);
 
     console.time('import')
-    await drive.import('lib', 'lib');
-    await drive.import('src', 'lib');
-    await drive.import('@types', 'lib');
+    await drive.import('../lib', 'lib');
+    await drive.import('../src', 'lib');
+    // await drive.import('../@types', 'lib');
     console.timeEnd('import')
 
     let folder = '/assa/as/sa/sa';

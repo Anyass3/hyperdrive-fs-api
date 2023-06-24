@@ -2,7 +2,6 @@
 import hyperdrive from 'hyperdrive';
 import fs from 'fs';
 import { join } from 'path';
-// @ts-ignore
 import { Readable, Writable, pipelinePromise } from 'streamx';
 import type HyperBee from 'hyperbee';
 import type * as TT from './typings'
@@ -30,16 +29,13 @@ class Hyperdrive extends hyperdrive {
     get metadata() {
         return (this.core as any).metadata
     }
-    get closed() {
-        return this.core.closed
-    }
     get readable(): boolean {
         return this.core.readable
     }
     get writable(): boolean {
         return this.core.writable
     }
-
+    // @ts-ignore
     override readdir<S extends boolean = false, B extends boolean = false>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
         if (readable) return this.#shallowReadStream(folder, { nameOnly, fileOnly, withStats, search }) as any;
         return this.#toArray(this.#shallowReadGenerator(folder, { nameOnly, fileOnly, withStats, search })) as any;

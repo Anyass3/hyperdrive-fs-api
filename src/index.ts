@@ -1,6 +1,5 @@
 
 import hyperdrive from 'hyperdrive';
-import fs from 'fs';
 import { join } from 'path';
 import { Readable, Writable, pipelinePromise } from 'streamx';
 import type HyperBee from 'hyperbee';
@@ -62,7 +61,7 @@ class Hyperdrive extends hyperdrive {
         await this.getDirs(path, { resolve: true });
     }
 
-    async write(path: string, content, encoding) {
+    async write(path: string, content: any, encoding?: BufferEncoding) {
         return await this.put(path, Buffer.from(content, encoding));
     }
 
@@ -78,7 +77,7 @@ class Hyperdrive extends hyperdrive {
         return node as TT.Node;
     }
 
-    async read(path: string, encoding) {
+    async read(path: string, encoding?: BufferEncoding) {
         const content = await this.get(path);
         return content?.toString(encoding);
     }

@@ -24,13 +24,13 @@ declare class Hyperdrive extends hyperdrive {
         search: string | RegExp;
     }>): TT.List<S, B>;
     throwErrorOnExists(path: string, isDir?: boolean): Promise<void>;
-    write(path: string, content: any, encoding: any): Promise<TT.Node>;
+    write(path: string, content: any, encoding?: BufferEncoding): Promise<TT.Node>;
     put(path: string, blob: Buffer, { awaitStats, ...opts }?: {
         executable?: boolean;
         awaitStats?: boolean;
         metadata?: Record<string, any>;
     }): Promise<TT.Node>;
-    read(path: string, encoding: any): Promise<any>;
+    read(path: string, encoding?: BufferEncoding): Promise<any>;
     del(path: string, { awaitStats }?: {
         awaitStats?: boolean;
     }): Promise<TT.Node>;

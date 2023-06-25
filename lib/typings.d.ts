@@ -49,8 +49,8 @@ export type ListOpts<S extends boolean = boolean, B extends boolean = boolean> =
     search: string | RegExp;
 }>;
 export type List<S extends boolean = boolean, B extends boolean = boolean> = B extends true ? Readable<Item<S>> : Promise<Item<S>[]>;
-export type ReadDir<S extends boolean = boolean, B extends boolean = boolean> = List<S, B>;
-export type ReadDirOpts<S extends boolean = boolean, B extends boolean = boolean> = Omit<ListOpts<S, B>, 'recursive'> & {
-    nameOnly?: boolean;
+export type ReadDir<S extends boolean = boolean, B extends boolean = boolean, N extends boolean = boolean> = N extends true ? string[] : List<S, B>;
+export type ReadDirOpts<S extends boolean = boolean, B extends boolean = boolean, N extends boolean = boolean> = Omit<ListOpts<S, B>, "recursive"> & {
+    nameOnly?: N;
 };
 export {};

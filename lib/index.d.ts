@@ -15,7 +15,7 @@ declare class Hyperdrive extends hyperdrive {
     get metadata(): any;
     get readable(): boolean;
     get writable(): boolean;
-    readdir<S extends boolean = false, B extends boolean = false>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B>): TT.ReadDir<S, B>;
+    readdir<S extends boolean = false, B extends boolean = false, N extends boolean = false>(folder?: string, { withStats, nameOnly, fileOnly, readable, search }?: TT.ReadDirOpts<S, B, N>): TT.ReadDir<S, B, N>;
     list<S extends boolean = false, B extends boolean = false>(folder: string, { recursive, withStats, fileOnly, readable, search }?: Partial<{
         recursive: boolean;
         withStats: S;

@@ -36,7 +36,7 @@ async function main() {
     // await drive.export('/lib', 'exports');
     // console.timeEnd('export')
 
-    // console.log('dir', await drive.list('/a/b'));
+    console.log('dir', await drive.readdir('/a', { fileOnly: true, nameOnly: true }));
     // console.log('dir', await drive.list('/a', { stat: true }));
     // console.log(await drive.entry('/a/b'));
     // console.log(await drive.get('/a/b/'));

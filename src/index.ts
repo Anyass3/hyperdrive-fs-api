@@ -35,7 +35,7 @@ class Hyperdrive extends hyperdrive {
         return this.core.writable
     }
     // @ts-ignore
-    override readdir<S extends boolean = false, B extends boolean = false>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B>): TT.ReadDir<S, B> {
+    override readdir<S extends boolean = false, B extends boolean = false, N extends boolean = false>(folder = '/', { withStats = false, nameOnly = false, fileOnly = false, readable = false, search = '' } = {} as TT.ReadDirOpts<S, B, N>): TT.ReadDir<S, B, N> {
         if (readable) return this.#shallowReadStream(folder, { nameOnly, fileOnly, withStats, search }) as any;
         return this.#toArray(this.#shallowReadGenerator(folder, { nameOnly, fileOnly, withStats, search })) as any;
     }

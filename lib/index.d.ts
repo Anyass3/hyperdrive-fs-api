@@ -10,7 +10,7 @@ declare class Hyperdrive extends hyperdrive {
     local: LocalDrive;
     private _list;
     private _readdir;
-    constructor(store: any, dkey?: string | Buffer, localDriveRoot?: string);
+    constructor(store: any, dkey?: string | Buffer | Record<string, any>, localDriveRoot?: string);
     get peers(): any;
     get metadata(): any;
     get readable(): boolean;

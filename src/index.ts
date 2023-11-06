@@ -12,8 +12,8 @@ class Hyperdrive extends hyperdrive {
     private _list: any;
     private _readdir: any;
 
-    constructor(store, dkey?: string | Buffer, localDriveRoot?: string) {
-        if (dkey && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
+    constructor(store, dkey?: string | Buffer | Record<string, any>, localDriveRoot?: string) {
+        if (typeof dkey == 'string' && !Buffer.isBuffer(dkey)) dkey = Buffer.from(dkey, 'hex')
         super(store, dkey);
 
         this._readdir = super.readdir
